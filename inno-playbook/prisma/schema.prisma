@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Organization {
+  id           String        @id @default(cuid())
+  name         String
+  sector       String?
+  deliverables Deliverable[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Deliverable {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  capId     String       // e.g., "C1", "C2"
+  fieldId   String       // e.g., "c1_assess", "c2_exp"
+  content   String
+  updatedAt DateTime     @updatedAt
+
+  @@unique([orgId, fieldId])
+}
