@@ -1,0 +1,4 @@
+[build]
+  base = "inno-playbook"
+  command = "npm run build"
+  publish = ".next"
