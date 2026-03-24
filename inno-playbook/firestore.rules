@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function userRole() {
+      // .get() ป้องกัน crash กรณี document ยังไม่มี (first-time register)
+      return isAuth()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'member')
+        : 'guest';
+    }
+
+    function isSuperAdmin() {
+      return userRole() == 'super_admin';
+    }
+
+    function isOrgAdmin() {
+      return userRole() in ['super_admin', 'org_admin'];
+    }
+
+    function canEdit() {
+      return isAuth() && userRole() in ['super_admin', 'org_admin', 'facilitator', 'member'];
+    }
+
+    // ── users/{uid} ───────────────────────────────────────────────────────────
+    // - อ่าน: ทุก user ที่ login (ใช้ใน Admin Dashboard / UserMenu)
+    // - สร้าง: สร้างได้เฉพาะ profile ของตัวเอง
+    // - แก้ไข: แก้ของตัวเองได้ / super_admin แก้ของใครก็ได้
+    // - ลบ: super_admin เท่านั้น
+
+    match /users/{uid} {
+      allow read:   if isAuth();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── organizations/{orgId} ─────────────────────────────────────────────────
+    // - อ่าน: ทุก user ที่ login
+    // - สร้าง/แก้ไข: member ขึ้นไป
+    // - ลบ: org_admin หรือ super_admin เท่านั้น
+
+    match /organizations/{orgId} {
+      allow read:          if isAuth();
+      allow create, update: if canEdit();
+      allow delete:        if isOrgAdmin();
+    }
+
+    // ── deliverables/{deliverableId} ──────────────────────────────────────────
+    // - อ่าน: ทุก user ที่ login
+    // - เขียน/แก้ไข: member ขึ้นไป (workshop participants)
+    // - ลบ: org_admin หรือ super_admin เท่านั้น
+
+    match /deliverables/{deliverableId} {
+      allow read:          if isAuth();
+      allow create, update: if canEdit();
+      allow delete:        if isOrgAdmin();
+    }
+  }
+}
