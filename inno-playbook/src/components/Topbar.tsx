@@ -1,7 +1,25 @@
 "use client";
 
+import Link from 'next/link';
 import { CAPS } from '@/lib/data';
 import UserMenu from '@/components/UserMenu';
+import PresenceBar from '@/components/PresenceBar';
+import NotificationBell from '@/components/NotificationBell';
+import { useAuth } from '@/contexts/AuthContext';
+import { exportToPDF, exportToExcel } from '@/lib/exportActions';
+
+interface TopbarProps {
+  activeCap: string;
+  setActiveCap: (cap: string) => void;
+  readinessScore: number;
+  isSaving: boolean;
+  data: Record<string, string>;
+  orgId?: string | null;
+  orgName?: string;
+  orgSector?: string;
+  onShowPlaybook: () => void;
+  onPresent: () => void;
+}
 
 export default function Topbar({
   activeCap,
@@ -9,9 +27,14 @@ export default function Topbar({
   readinessScore,
   isSaving,
   data,
+  orgId,
+  orgName = '',
+  orgSector = '',
   onShowPlaybook,
-  onPresent
-}: any) {
+  onPresent,
+}: TopbarProps) {
+  const { user } = useAuth();
+
   const capPct = (id: string) => {
     const c = CAPS.find(x => x.id === id);
     if (!c) return 0;
@@ -26,6 +49,11 @@ export default function Topbar({
         <span className="topbar-title">Innovation Playbook Platform</span>
       </div>
       <div className="topbar-right">
+        {/* Presence bar — online users in same org */}
+        {orgId && user && (
+          <PresenceBar orgId={orgId} currentUserId={user.uid} />
+        )}
+
         <div className="cap-dots">
           {CAPS.map(c => {
             const p = capPct(c.id);
@@ -42,12 +70,37 @@ export default function Topbar({
             );
           })}
         </div>
+
+        {/* Export buttons */}
+        <button
+          className="topbar-icon-btn"
+          title="Export PDF"
+          onClick={() => exportToPDF(orgName, orgSector, data)}
+        >
+          📄
+        </button>
+        <button
+          className="topbar-icon-btn"
+          title="Export Excel"
+          onClick={() => exportToExcel(orgName, orgSector, data)}
+        >
+          📊
+        </button>
+
+        {/* Dashboard link */}
+        <Link href="/dashboard" className="topbar-icon-btn" title="Dashboard">
+          📈
+        </Link>
+
         <button className="present-btn" onClick={onPresent}>▶ Present</button>
         <div className="readiness-pill" onClick={onShowPlaybook}>
           <span className="readiness-label">ISO READINESS</span>
           <span className="readiness-score">{readinessScore}%</span>
         </div>
         <span className={`save-ind ${isSaving ? 'show' : ''}`}>✓ Saved</span>
+
+        {/* Notification bell */}
+        <NotificationBell />
 
         {/* User Avatar & Dropdown */}
         <UserMenu />

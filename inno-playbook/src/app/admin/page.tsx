@@ -3,33 +3,63 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { getAllOrganizations, Organization } from '@/lib/actions';
 import { CAPS } from '@/lib/data';
 import { useAuth, isSuperAdmin } from '@/contexts/AuthContext';
+import { getCohorts, Cohort } from '@/lib/realtimeActions';
+import { exportFacilitatorReport } from '@/lib/exportActions';
 import UserMenu from '@/components/UserMenu';
+
+const totalDeliverables = CAPS.reduce((a, c) => a + c.deliverables.length, 0);
+
+function calcReadiness(deliverables: { fieldId: string; content: string }[]): number {
+  const filled = CAPS.reduce(
+    (a, c) =>
+      a +
+      c.deliverables.filter((d) =>
+        deliverables.some((od) => od.fieldId === d.id && od.content.trim().length > 15),
+      ).length,
+    0,
+  );
+  return Math.round((filled / totalDeliverables) * 100);
+}
 
 export default function AdminPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const totalDeliverables = CAPS.reduce((a, c) => a + c.deliverables.length, 0);
+  const [selectedCohort, setSelectedCohort] = useState<string>('all');
 
-  // ── Guard: ต้องเป็น super_admin เท่านั้น ──────────────────────────────────
+  // ── Guard ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/auth/login'); return; }
     if (profile && !isSuperAdmin(profile)) { router.replace('/'); }
   }, [user, profile, authLoading, router]);
 
+  // ── Real-time organizations subscription ─────────────────────────────────
   useEffect(() => {
     if (!isSuperAdmin(profile)) return;
-    getAllOrganizations()
-      .then(setOrgs)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+
+    // Fetch cohorts
+    getCohorts().then(setCohorts).catch(console.error);
+
+    // Subscribe to organizations with real-time updates
+    const orgQuery = query(collection(db, 'organizations'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(orgQuery, async (snap) => {
+      // Fetch deliverables for each org
+      const updated = await getAllOrganizations();
+      setOrgs(updated);
+      setLoading(false);
+    });
+
+    return unsub;
   }, [profile]);
 
   if (authLoading || !profile) {
@@ -42,20 +72,27 @@ export default function AdminPage() {
 
   if (!isSuperAdmin(profile)) return null;
 
-  const filtered = orgs.filter(o =>
-    o.name.toLowerCase().includes(search.toLowerCase()) ||
-    (o.sector || '').toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter by cohort
+  const cohortOrgIds =
+    selectedCohort !== 'all'
+      ? cohorts.find((c) => c.id === selectedCohort)?.orgIds ?? []
+      : null;
+
+  const filtered = orgs
+    .filter((o) => !cohortOrgIds || cohortOrgIds.includes(o.id))
+    .filter((o) =>
+      o.name.toLowerCase().includes(search.toLowerCase()) ||
+      (o.sector || '').toLowerCase().includes(search.toLowerCase()),
+    );
 
   const avgReadiness = orgs.length
-    ? Math.round(orgs.reduce((sum, org) => {
-        const filled = CAPS.reduce((a, c) =>
-          a + c.deliverables.filter(d =>
-            org.deliverables.some(od => od.fieldId === d.id && od.content.trim().length > 15)
-          ).length, 0);
-        return sum + Math.round((filled / totalDeliverables) * 100);
-      }, 0) / orgs.length)
+    ? Math.round(orgs.reduce((sum, org) => sum + calcReadiness(org.deliverables), 0) / orgs.length)
     : 0;
+
+  const currentCohortName =
+    selectedCohort !== 'all'
+      ? cohorts.find((c) => c.id === selectedCohort)?.name
+      : undefined;
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
@@ -72,6 +109,12 @@ export default function AdminPage() {
           <Link href="/" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
             ← Workshop
           </Link>
+          <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+            📊 Dashboard
+          </Link>
+          <Link href="/cohorts" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+            👥 Cohorts
+          </Link>
           <UserMenu />
         </div>
       </div>
@@ -79,28 +122,59 @@ export default function AdminPage() {
       <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
 
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
           <StatCard label="องค์กรทั้งหมด" value={orgs.length} unit="องค์กร" color="var(--navy)" />
           <StatCard label="ค่าเฉลี่ย Readiness" value={`${avgReadiness}%`} unit="ISO 56001" color="var(--teal)" />
           <StatCard label="Deliverables / Org" value={totalDeliverables} unit="ฟิลด์" color="var(--purple)" />
+          <StatCard label="Cohorts" value={cohorts.length} unit="กลุ่ม" color="var(--amber)" />
         </div>
 
-        {/* Search + Count */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        {/* Filters Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>
             รายการองค์กร ({filtered.length})
           </h2>
-          <input
-            type="text"
-            placeholder="ค้นหาชื่อองค์กร / Sector..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 8,
-              fontFamily: 'var(--thai)', fontSize: 13, outline: 'none',
-              width: 260, background: 'white', color: 'var(--slate)',
-            }}
-          />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Cohort filter */}
+            <select
+              value={selectedCohort}
+              onChange={(e) => setSelectedCohort(e.target.value)}
+              style={{
+                padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8,
+                fontFamily: 'var(--thai)', fontSize: 12, outline: 'none',
+                background: 'white', color: 'var(--slate)', cursor: 'pointer',
+              }}
+            >
+              <option value="all">All Cohorts</option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อองค์กร / Sector..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                padding: '8px 14px', border: '1px solid var(--border)', borderRadius: 8,
+                fontFamily: 'var(--thai)', fontSize: 13, outline: 'none',
+                width: 240, background: 'white', color: 'var(--slate)',
+              }}
+            />
+
+            {/* Export Facilitator Report */}
+            <button
+              onClick={() => exportFacilitatorReport(filtered, currentCohortName)}
+              style={{
+                padding: '8px 14px', background: 'var(--teal)', color: 'white',
+                border: 'none', borderRadius: 8, fontFamily: 'var(--thai)', fontSize: 12,
+                cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap',
+              }}
+            >
+              📊 Export Report
+            </button>
+          </div>
         </div>
 
         {/* Org Cards */}
@@ -109,11 +183,11 @@ export default function AdminPage() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {filtered.map(org => {
+              const readiness = calcReadiness(org.deliverables);
               const filled = CAPS.reduce((a, c) =>
                 a + c.deliverables.filter(d =>
                   org.deliverables.some(od => od.fieldId === d.id && od.content.trim().length > 15)
                 ).length, 0);
-              const readiness = Math.round((filled / totalDeliverables) * 100);
               const color = readiness >= 80 ? 'var(--green)' : readiness >= 50 ? 'var(--amber)' : 'var(--red)';
 
               return (
@@ -131,6 +205,18 @@ export default function AdminPage() {
                   <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 16 }}>
                     {org.sector || 'ไม่ระบุ Sector'}
                   </p>
+
+                  {/* Cohort badges */}
+                  {cohorts.filter((c) => c.orgIds.includes(org.id)).map((c) => (
+                    <span key={c.id} style={{
+                      display: 'inline-block', background: 'rgba(11,123,116,.1)',
+                      color: 'var(--teal)', border: '1px solid var(--teal)',
+                      borderRadius: 12, fontSize: 9, padding: '1px 7px',
+                      fontFamily: 'var(--mono)', marginBottom: 10, marginRight: 4,
+                    }}>
+                      {c.name}
+                    </span>
+                  ))}
 
                   {/* Readiness Bar */}
                   <div style={{ marginBottom: 12 }}>

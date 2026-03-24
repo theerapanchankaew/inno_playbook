@@ -1,18 +1,27 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CAPS } from '@/lib/data';
 import { saveOrganization, saveDeliverable, getOrganizationData } from '@/lib/actions';
 import { linkOrgToUser, getUserOrgId } from '@/lib/authActions';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  subscribeToDeliverables,
+  setPresence,
+  clearPresence,
+  logActivity,
+  saveVersion,
+} from '@/lib/realtimeActions';
 import Topbar from '@/components/Topbar';
 import Sidebar from '@/components/Sidebar';
 import Workspace from '@/components/Workspace';
 import Modals from '@/components/Modals';
+import CommentsPanel from '@/components/CommentsPanel';
+import VersionHistory from '@/components/VersionHistory';
 
 export default function Home() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -26,20 +35,31 @@ export default function Home() {
   const [data, setData] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [pageReady, setPageReady] = useState(false);
+  const [showActivityFeed, setShowActivityFeed] = useState(false);
 
-  // ── Redirect ถ้า ยัง auth loading หรือ ไม่มี user ───────────────────────────
+  // Comment panel state
+  const [commentFieldId, setCommentFieldId] = useState<string | null>(null);
+  const [commentFieldLabel, setCommentFieldLabel] = useState('');
+
+  // Version history state
+  const [versionFieldId, setVersionFieldId] = useState<string | null>(null);
+  const [versionFieldLabel, setVersionFieldLabel] = useState('');
+
+  // Track previous content for version diffing
+  const prevContentRef = useRef<Record<string, string>>({});
+
+  // ── Redirect if not authenticated ───────────────────────────────────────────
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/auth/login');
     }
   }, [user, authLoading, router]);
 
-  // ── Load org data เมื่อ user ready ──────────────────────────────────────────
+  // ── Load org data when user ready ────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
 
     const init = async () => {
-      // 1. ลอง localStorage ก่อน (เร็ว)
       const localOrgId = localStorage.getItem(`innoPB_orgId_${user.uid}`);
       if (localOrgId) {
         setOrgId(localOrgId);
@@ -48,7 +68,6 @@ export default function Home() {
         return;
       }
 
-      // 2. ลอง Firestore user profile
       const firestoreOrgId = await getUserOrgId(user.uid);
       if (firestoreOrgId) {
         setOrgId(firestoreOrgId);
@@ -58,12 +77,37 @@ export default function Home() {
         return;
       }
 
-      // 3. ไม่มี org เลย → รอ user กรอก org name ใน Sidebar
       setPageReady(true);
     };
 
     init();
   }, [user]);
+
+  // ── Real-time deliverable subscription ───────────────────────────────────────
+  useEffect(() => {
+    if (!orgId) return;
+    const unsub = subscribeToDeliverables(orgId, (realtimeData) => {
+      setData((prev) => ({ ...prev, ...realtimeData }));
+    });
+    return unsub;
+  }, [orgId]);
+
+  // ── Presence: set on mount, clear on unmount ─────────────────────────────────
+  useEffect(() => {
+    if (!orgId || !user) return;
+    const displayName = profile?.displayName || user.displayName || 'User';
+    setPresence(orgId, user.uid, displayName, activeCap).catch(() => null);
+    return () => {
+      clearPresence(orgId, user.uid).catch(() => null);
+    };
+  }, [orgId, user, profile]);
+
+  // ── Update presence when active CAP changes ──────────────────────────────────
+  useEffect(() => {
+    if (!orgId || !user) return;
+    const displayName = profile?.displayName || user.displayName || 'User';
+    setPresence(orgId, user.uid, displayName, activeCap).catch(() => null);
+  }, [activeCap, orgId, user, profile]);
 
   const loadOrgData = async (id: string) => {
     const org = await getOrganizationData(id);
@@ -73,6 +117,7 @@ export default function Home() {
       const newData: Record<string, string> = {};
       org.deliverables.forEach(d => { newData[d.fieldId] = d.content; });
       setData(newData);
+      prevContentRef.current = { ...newData };
     }
   };
 
@@ -85,7 +130,7 @@ export default function Home() {
     if (!orgId && org) {
       setOrgId(org.id);
       localStorage.setItem(`innoPB_orgId_${user.uid}`, org.id);
-      await linkOrgToUser(user.uid, org.id);  // เชื่อม org กับ user
+      await linkOrgToUser(user.uid, org.id);
     }
     setTimeout(() => setIsSaving(false), 1600);
   };
@@ -94,21 +139,61 @@ export default function Home() {
     if (!user) return;
     setData(prev => ({ ...prev, [fieldId]: content }));
 
-    if (!orgId) {
+    let currentOrgId = orgId;
+
+    if (!currentOrgId) {
       const org = await saveOrganization(null, orgName || 'Unnamed Org', orgSector);
       if (org) {
+        currentOrgId = org.id;
         setOrgId(org.id);
         localStorage.setItem(`innoPB_orgId_${user.uid}`, org.id);
         await linkOrgToUser(user.uid, org.id);
-        setIsSaving(true);
-        await saveDeliverable(org.id, capId, fieldId, content);
-        setTimeout(() => setIsSaving(false), 1600);
       }
-    } else {
-      setIsSaving(true);
-      await saveDeliverable(orgId, capId, fieldId, content);
-      setTimeout(() => setIsSaving(false), 1600);
     }
+
+    if (!currentOrgId) return;
+
+    setIsSaving(true);
+    await saveDeliverable(currentOrgId, capId, fieldId, content);
+
+    // Log activity
+    const displayName = profile?.displayName || user.displayName || 'User';
+    const cap = CAPS.find(c => c.id === capId);
+    const deliverable = cap?.deliverables.find(d => d.id === fieldId);
+    logActivity(
+      currentOrgId,
+      user.uid,
+      displayName,
+      'save',
+      `${capId}: ${deliverable?.lbl || fieldId}`,
+    ).catch(() => null);
+
+    // Save version if significant change
+    const prev = prevContentRef.current[fieldId] || '';
+    const diff = Math.abs(content.length - prev.length);
+    if (diff > 30 && content.trim().length > 10) {
+      saveVersion(currentOrgId, fieldId, content, user.uid, displayName).catch(() => null);
+      prevContentRef.current[fieldId] = content;
+    }
+
+    setTimeout(() => setIsSaving(false), 1600);
+  };
+
+  const handleOpenComments = (fieldId: string, fieldLabel: string) => {
+    setCommentFieldId(fieldId);
+    setCommentFieldLabel(fieldLabel);
+  };
+
+  const handleOpenVersionHistory = (fieldId: string, fieldLabel: string) => {
+    setVersionFieldId(fieldId);
+    setVersionFieldLabel(fieldLabel);
+  };
+
+  const handleRestoreVersion = async (fieldId: string, content: string) => {
+    const cap = CAPS.find(c => c.deliverables.some(d => d.id === fieldId));
+    if (!cap) return;
+    await handleFieldChange(cap.id, fieldId, content);
+    setVersionFieldId(null);
   };
 
   const calculateReadiness = () => {
@@ -118,7 +203,7 @@ export default function Home() {
     return Math.round((filled / tot) * 100);
   };
 
-  // ── Loading Screen ─────────────────────────────────────────────────────────
+  // ── Loading Screen ──────────────────────────────────────────────────────────
   if (authLoading || !pageReady) {
     return (
       <div style={{
@@ -141,6 +226,11 @@ export default function Home() {
 
   const readinessScore = calculateReadiness();
 
+  // Find deliverable label for version history
+  const versionDeliverable = versionFieldId
+    ? CAPS.flatMap(c => c.deliverables).find(d => d.id === versionFieldId)
+    : null;
+
   return (
     <div className="layout-root">
       <Topbar
@@ -149,6 +239,9 @@ export default function Home() {
         readinessScore={readinessScore}
         isSaving={isSaving}
         data={data}
+        orgId={orgId}
+        orgName={orgName}
+        orgSector={orgSector}
         onShowPlaybook={() => setShowPlaybookModal(true)}
         onPresent={() => setShowPresentModal(true)}
       />
@@ -163,6 +256,9 @@ export default function Home() {
           data={data}
           onShowMatrix={() => setShowMatrixModal(true)}
           onShowPlaybook={() => setShowPlaybookModal(true)}
+          orgId={orgId}
+          showActivityFeed={showActivityFeed}
+          onToggleActivityFeed={() => setShowActivityFeed(v => !v)}
         />
 
         <Workspace
@@ -171,6 +267,9 @@ export default function Home() {
           setActiveTab={setActiveTab}
           data={data}
           onFieldChange={handleFieldChange}
+          orgId={orgId}
+          onOpenComments={handleOpenComments}
+          onOpenVersionHistory={handleOpenVersionHistory}
         />
       </div>
 
@@ -185,6 +284,28 @@ export default function Home() {
         orgName={orgName}
         orgSector={orgSector}
       />
+
+      {/* Comments panel */}
+      {commentFieldId && orgId && (
+        <CommentsPanel
+          orgId={orgId}
+          fieldId={commentFieldId}
+          fieldLabel={commentFieldLabel}
+          onClose={() => setCommentFieldId(null)}
+        />
+      )}
+
+      {/* Version history modal */}
+      {versionFieldId && orgId && (
+        <VersionHistory
+          orgId={orgId}
+          fieldId={versionFieldId}
+          fieldLabel={versionDeliverable?.lbl || versionFieldLabel}
+          currentContent={data[versionFieldId] || ''}
+          onRestore={(content: string) => handleRestoreVersion(versionFieldId, content)}
+          onClose={() => setVersionFieldId(null)}
+        />
+      )}
     </div>
   );
 }

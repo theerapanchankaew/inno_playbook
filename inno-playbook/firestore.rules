@@ -33,11 +33,6 @@ service cloud.firestore {
     }
 
     // ── users/{uid} ───────────────────────────────────────────────────────────
-    // - อ่าน: ทุก user ที่ login (ใช้ใน Admin Dashboard / UserMenu)
-    // - สร้าง: สร้างได้เฉพาะ profile ของตัวเอง
-    // - แก้ไข: แก้ของตัวเองได้ / super_admin แก้ของใครก็ได้
-    // - ลบ: super_admin เท่านั้น
-
     match /users/{uid} {
       allow read:   if isAuth();
       allow create: if isOwner(uid);
@@ -46,25 +41,67 @@ service cloud.firestore {
     }
 
     // ── organizations/{orgId} ─────────────────────────────────────────────────
-    // - อ่าน: ทุก user ที่ login
-    // - สร้าง/แก้ไข: member ขึ้นไป
-    // - ลบ: org_admin หรือ super_admin เท่านั้น
-
     match /organizations/{orgId} {
-      allow read:          if isAuth();
+      allow read:           if isAuth();
       allow create, update: if canEdit();
-      allow delete:        if isOrgAdmin();
+      allow delete:         if isOrgAdmin();
     }
 
     // ── deliverables/{deliverableId} ──────────────────────────────────────────
-    // - อ่าน: ทุก user ที่ login
-    // - เขียน/แก้ไข: member ขึ้นไป (workshop participants)
-    // - ลบ: org_admin หรือ super_admin เท่านั้น
-
     match /deliverables/{deliverableId} {
-      allow read:          if isAuth();
+      allow read:           if isAuth();
       allow create, update: if canEdit();
-      allow delete:        if isOrgAdmin();
+      allow delete:         if isOrgAdmin();
+    }
+
+    // ── presence/{orgId}/users/{userId} ───────────────────────────────────────
+    // Authenticated users can write/read their own presence
+    match /presence/{orgId}/users/{userId} {
+      allow read:   if isAuth();
+      allow write:  if isOwner(userId);
+    }
+
+    // ── activities/{orgId}/feed/{actId} ───────────────────────────────────────
+    // Authenticated users can read all; write if they are the author
+    match /activities/{orgId}/feed/{actId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update, delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── comments/{docId}/items/{commentId} ───────────────────────────────────
+    // Authenticated can read; write own; delete own
+    match /comments/{docId}/items/{commentId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && (
+        resource.data.userId == request.auth.uid || isSuperAdmin()
+      );
+    }
+
+    // ── versions/{docId}/history/{versionId} ─────────────────────────────────
+    // Authenticated can read; write if they can edit
+    match /versions/{docId}/history/{versionId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ── notifications/{userId}/items/{notifId} ────────────────────────────────
+    // Users can only read/write their own notifications
+    match /notifications/{userId}/items/{notifId} {
+      allow read, write: if isOwner(userId);
+      // Allow super_admin and system to create notifications for any user
+      allow create: if isAuth() && isSuperAdmin();
+    }
+
+    // ── cohorts/{cohortId} ────────────────────────────────────────────────────
+    // Authenticated can read; org_admin+ can create/update; super_admin can delete
+    match /cohorts/{cohortId} {
+      allow read:           if isAuth();
+      allow create, update: if isOrgAdmin();
+      allow delete:         if isSuperAdmin();
     }
   }
 }
