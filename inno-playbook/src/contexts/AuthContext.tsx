@@ -102,30 +102,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
-
-    // First ever user → super_admin, others → member
-    const hasAdmin = await hasSuperAdmin();
-    const role = hasAdmin ? 'member' : 'super_admin';
-
-    const p = await createUserProfile(cred.user.uid, email, displayName);
-    if (role === 'super_admin') {
-      // Import dynamically to avoid circular deps
-      const { updateUserRole } = await import('@/lib/authActions');
-      await updateUserRole(cred.user.uid, 'super_admin');
-      setProfile({ ...p, role: 'super_admin' });
-    } else {
-      setProfile(p);
-    }
     setUser(cred.user);
     setSessionCookie();
+    // Firestore profile creation is best-effort
+    try {
+      const hasAdmin = await hasSuperAdmin();
+      const role = hasAdmin ? 'member' : 'super_admin';
+      const p = await createUserProfile(cred.user.uid, email, displayName);
+      if (role === 'super_admin') {
+        const { updateUserRole } = await import('@/lib/authActions');
+        await updateUserRole(cred.user.uid, 'super_admin');
+        setProfile({ ...p, role: 'super_admin' });
+      } else {
+        setProfile(p);
+      }
+    } catch (err) {
+      console.warn('[AuthContext] createUserProfile failed (check Firestore rules):', err);
+      setProfile({
+        uid: cred.user.uid,
+        email,
+        displayName,
+        role: 'member',
+        createdAt: null,
+        lastActive: null,
+      });
+    }
   };
 
   // ── Sign In ──────────────────────────────────────────────────────────────────
   const signIn = async (email: string, password: string) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     setUser(cred.user);
-    await loadProfile(cred.user);
     setSessionCookie();
+    // loadProfile is best-effort — Firestore permission errors must not block login
+    try {
+      await loadProfile(cred.user);
+    } catch (err) {
+      console.warn('[AuthContext] loadProfile failed (check Firestore rules):', err);
+      setProfile({
+        uid: cred.user.uid,
+        email: cred.user.email ?? '',
+        displayName: cred.user.displayName ?? 'User',
+        role: 'member',
+        createdAt: null,
+        lastActive: null,
+      });
+    }
   };
 
   // ── Sign Out ─────────────────────────────────────────────────────────────────
