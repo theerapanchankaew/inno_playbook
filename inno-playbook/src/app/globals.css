@@ -7,7 +7,8 @@
   --mono:'IBM Plex Mono',monospace;--sans:'Space Grotesk',sans-serif;--thai:'IBM Plex Sans Thai',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--thai);background:var(--bg);color:var(--slate);min-height:100vh;overflow:hidden}
+body{font-family:var(--thai);background:var(--bg);color:var(--slate);min-height:100vh}
+.layout-root{overflow:hidden;height:100vh}
 
 /* TOPBAR */
 .topbar{background:var(--navy);padding:0 18px;display:flex;align-items:center;justify-content:space-between;height:50px;border-bottom:2px solid var(--teal);position:sticky;top:0;z-index:200}

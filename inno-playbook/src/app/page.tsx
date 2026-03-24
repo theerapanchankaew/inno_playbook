@@ -142,7 +142,7 @@ export default function Home() {
   const readinessScore = calculateReadiness();
 
   return (
-    <>
+    <div className="layout-root">
       <Topbar
         activeCap={activeCap}
         setActiveCap={setActiveCap}
@@ -185,6 +185,6 @@ export default function Home() {
         orgName={orgName}
         orgSector={orgSector}
       />
-    </>
+    </div>
   );
 }

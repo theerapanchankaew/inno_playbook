@@ -72,19 +72,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ── Listen to Firebase Auth state ────────────────────────────────────────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        await loadProfile(firebaseUser);
-        setSessionCookie();
-      } else {
-        setUser(null);
-        setProfile(null);
-        clearSessionCookie();
-      }
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        try {
+          if (firebaseUser) {
+            setUser(firebaseUser);
+            await loadProfile(firebaseUser);
+            setSessionCookie();
+          } else {
+            setUser(null);
+            setProfile(null);
+            clearSessionCookie();
+          }
+        } catch (err) {
+          console.error('[AuthContext] auth state handler error:', err);
+        } finally {
+          setLoading(false);
+        }
+      });
+    } catch (err) {
+      console.error('[AuthContext] onAuthStateChanged init error:', err);
       setLoading(false);
-    });
-    return unsubscribe;
+    }
+    return () => unsubscribe?.();
   }, []);
 
   // ── Sign Up ──────────────────────────────────────────────────────────────────
