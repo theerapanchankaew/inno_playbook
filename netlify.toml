@@ -3,5 +3,13 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  NEXT_PUBLIC_FIREBASE_API_KEY = "AIzaSyAzBQOuLhXf-hEzO7jJOQHGiICgi6zgF_0"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "studio-7347674143-f5d12.firebaseapp.com"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID = "studio-7347674143-f5d12"
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "studio-7347674143-f5d12.firebasestorage.app"
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "45547995854"
+  NEXT_PUBLIC_FIREBASE_APP_ID = "1:45547995854:web:7ce760a92fecf8fd4bc69f"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
