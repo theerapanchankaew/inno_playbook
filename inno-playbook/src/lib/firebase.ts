@@ -1,5 +1,6 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { Auth, getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,5 +11,20 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-export const db = getFirestore(app);
+// Firebase ต้อง initialize เฉพาะ client-side เท่านั้น
+// ป้องกัน error ระหว่าง Next.js SSR / build
+let db: Firestore;
+let auth: Auth;
+
+if (typeof window !== 'undefined') {
+  const app: FirebaseApp =
+    getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  db = getFirestore(app);
+  auth = getAuth(app);
+} else {
+  // SSR stub — ไม่ถูกเรียกใช้จริงเพราะ code ทั้งหมดอยู่ใน 'use client'
+  db = {} as Firestore;
+  auth = {} as Auth;
+}
+
+export { db, auth };

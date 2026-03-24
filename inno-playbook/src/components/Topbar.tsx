@@ -1,18 +1,19 @@
 "use client";
 
 import { CAPS } from '@/lib/data';
+import UserMenu from '@/components/UserMenu';
 
-export default function Topbar({ 
-  activeCap, 
-  setActiveCap, 
-  readinessScore, 
-  isSaving, 
+export default function Topbar({
+  activeCap,
+  setActiveCap,
+  readinessScore,
+  isSaving,
   data,
   onShowPlaybook,
   onPresent
 }: any) {
   const capPct = (id: string) => {
-    const c = CAPS.find(x => x.id === id); 
+    const c = CAPS.find(x => x.id === id);
     if (!c) return 0;
     const filled = c.deliverables.filter(d => (data[d.id] || '').trim().length > 15).length;
     return Math.round((filled / c.deliverables.length) * 100);
@@ -30,10 +31,10 @@ export default function Topbar({
             const p = capPct(c.id);
             const cls = p >= 80 ? 'done' : p > 0 ? 'partial' : '';
             return (
-              <div 
+              <div
                 key={c.id}
-                className={`cap-dot ${cls} ${activeCap === c.id ? 'active' : ''}`} 
-                onClick={() => setActiveCap(c.id)} 
+                className={`cap-dot ${cls} ${activeCap === c.id ? 'active' : ''}`}
+                onClick={() => setActiveCap(c.id)}
                 title={`${c.name}: ${p}%`}
               >
                 {c.id}
@@ -47,6 +48,9 @@ export default function Topbar({
           <span className="readiness-score">{readinessScore}%</span>
         </div>
         <span className={`save-ind ${isSaving ? 'show' : ''}`}>✓ Saved</span>
+
+        {/* User Avatar & Dropdown */}
+        <UserMenu />
       </div>
     </div>
   );
