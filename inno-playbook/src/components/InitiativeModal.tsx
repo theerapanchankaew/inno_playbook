@@ -103,6 +103,11 @@ export default function InitiativeModal({ orgId, ownerId, ownerName, initiative,
   };
   const removeMS = (id: string) => set('milestones', form.milestones.filter(m => m.id !== id));
 
+  /* ── Strip undefined so Firestore doesn't throw ── */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stripUndefined = (obj: Record<string, any>): Record<string, any> =>
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+
   /* ── Save ── */
   const handleSave = async () => {
     if (!form.title.trim()) { setError('กรุณาระบุชื่อ Initiative'); return; }
@@ -111,22 +116,22 @@ export default function InitiativeModal({ orgId, ownerId, ownerName, initiative,
     try {
       const cleanKPIs = form.kpis.filter(k => k.name.trim());
       if (isEdit && initiative) {
-        await updateInitiative(initiative.id, {
+        await updateInitiative(initiative.id, stripUndefined({
           ...form,
           kpis: cleanKPIs,
           ownerName,
           ownerId,
           orgId,
-        });
+        }) as Parameters<typeof updateInitiative>[1]);
       } else {
-        await createInitiative({
+        await createInitiative(stripUndefined({
           ...form,
           kpis: cleanKPIs,
           orgId,
           ownerId,
           ownerName,
           createdBy: ownerId,
-        });
+        }) as Parameters<typeof createInitiative>[0]);
       }
       onSaved();
       onClose();

@@ -90,12 +90,21 @@ export const TYPE_META: Record<InitiativeType, { label: string; emoji: string }>
   social:         { label: 'Social Innovation',         emoji: '🌱' },
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Strip all undefined values so Firestore doesn't throw */
+function clean<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 // ─── CRUD Operations ──────────────────────────────────────────────────────────
 
 /** Create a new initiative */
 export async function createInitiative(input: InitiativeInput): Promise<string> {
   const ref = await addDoc(collection(db, 'initiatives'), {
-    ...input,
+    ...clean(input),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -108,7 +117,7 @@ export async function updateInitiative(
   updates: Partial<Omit<Initiative, 'id' | 'createdAt'>>
 ): Promise<void> {
   await updateDoc(doc(db, 'initiatives', id), {
-    ...updates,
+    ...clean(updates),
     updatedAt: serverTimestamp(),
   });
 }
