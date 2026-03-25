@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output (rebuilt inside Docker)
+.next/
+out/
+
+# Environment files (never bake secrets into image layers)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# Dev tools
+.claude/
+*.bat
+deploy-firestore.bat
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+*.md
+!README.md
+
+# Test
+**/*.test.*
+**/*.spec.*
