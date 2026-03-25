@@ -11,6 +11,7 @@ import { useAuth, isSuperAdmin } from '@/contexts/AuthContext';
 import { getCohorts, Cohort } from '@/lib/realtimeActions';
 import { exportFacilitatorReport } from '@/lib/exportActions';
 import UserMenu from '@/components/UserMenu';
+import GlobalNav from '@/components/GlobalNav';
 
 const totalDeliverables = CAPS.reduce((a, c) => a + c.deliverables.length, 0);
 
@@ -95,7 +96,8 @@ export default function AdminPage() {
       : undefined;
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+    <div className="gnav-offset" style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+      <GlobalNav />
 
       {/* Header */}
       <div style={{ background: 'var(--navy)', padding: '0 24px', height: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--teal)', position: 'sticky', top: 0, zIndex: 200 }}>
@@ -106,8 +108,8 @@ export default function AdminPage() {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
-            ← Workshop
+          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+            🚀 Initiatives
           </Link>
           <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
             📊 Dashboard

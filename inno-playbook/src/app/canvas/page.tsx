@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserOrgId } from '@/lib/authActions';
 import UserMenu from '@/components/UserMenu';
+import GlobalNav from '@/components/GlobalNav';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,11 +100,18 @@ export default function CanvasPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || authLoading) return;
     const cached = localStorage.getItem(`innoPB_orgId_${user.uid}`);
     if (cached) { setOrgId(cached); return; }
-    getUserOrgId(user.uid).then(id => { if (id) setOrgId(id); });
-  }, [user]);
+    getUserOrgId(user.uid).then(id => {
+      if (id) {
+        setOrgId(id);
+        localStorage.setItem(`innoPB_orgId_${user.uid}`, id);
+      } else if (profile?.role === 'super_admin') {
+        setOrgId(user.uid);
+      }
+    });
+  }, [user, authLoading, profile?.role]);
 
   // ── Load from Firestore (with fallback) ────────────────────────────────────
   useEffect(() => {
@@ -167,7 +175,7 @@ export default function CanvasPage() {
     const col  = activeColorRef.current;
 
     if (!oid || !usr) {
-      showToast('⚠️ No organization linked — go to Workshop first');
+      showToast('⚠️ ยังไม่ได้ตั้งค่าองค์กร — ไปที่ Initiatives เพื่อสร้างองค์กรก่อน');
       return;
     }
 
@@ -315,7 +323,8 @@ export default function CanvasPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="canvas-page">
+    <div className="canvas-page gnav-offset">
+      <GlobalNav />
 
       {/* ── Topbar ────────────────────────────────────────────────────────── */}
       <div className="canvas-topbar">
@@ -336,7 +345,7 @@ export default function CanvasPage() {
           </div>
           <Link href="/dashboard" className="canvas-nav-link">📊 Dashboard</Link>
           <Link href="/experts"   className="canvas-nav-link">👥 Experts</Link>
-          <Link href="/"          className="canvas-nav-link">← Workshop</Link>
+          <Link href="/initiatives" className="canvas-nav-link">🚀 Initiatives</Link>
           <UserMenu />
         </div>
       </div>
@@ -365,9 +374,9 @@ export default function CanvasPage() {
       {!orgId && !authLoading && (
         <div className="canvas-empty-org">
           <div style={{ fontSize: 48 }}>🗺️</div>
-          <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--navy)' }}>No organization linked</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--navy)' }}>ยังไม่ได้ตั้งค่าองค์กร</div>
           <div style={{ color: 'var(--muted)', marginTop: 8 }}>
-            Go to the <Link href="/" style={{ color: 'var(--teal)' }}>Workshop</Link> and fill in your organization name first.
+            ไปที่ <Link href="/initiatives" style={{ color: 'var(--teal)' }}>Initiatives</Link> เพื่อตั้งค่าองค์กรก่อนใช้งาน Canvas
           </div>
         </div>
       )}

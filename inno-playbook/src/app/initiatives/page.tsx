@@ -18,9 +18,84 @@ import {
   updateInitiativeProgress,
   toggleMilestone,
 } from '@/lib/initiativeActions';
-import { getUserOrgId } from '@/lib/authActions';
+import { getUserOrgId, linkOrgToUser } from '@/lib/authActions';
+import { saveOrganization, getOrganizationData } from '@/lib/actions';
 import InitiativeModal from '@/components/InitiativeModal';
 import Topbar from '@/components/Topbar';
+import GlobalNav from '@/components/GlobalNav';
+
+// ─── Org Setup Modal — แสดงเมื่อ user ยังไม่มี Organization ──────────────────
+
+function OrgSetupModal({
+  onComplete,
+}: {
+  onComplete: (orgId: string, name: string, sector: string) => void;
+}) {
+  const [name,    setName]    = useState('');
+  const [sector,  setSector]  = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const { user } = useAuth();
+
+  const SECTORS = [
+    'ภาครัฐ / Government', 'การศึกษา / Education', 'สาธารณสุข / Healthcare',
+    'การเงิน / Finance', 'เทคโนโลยี / Technology', 'การผลิต / Manufacturing',
+    'การค้าปลีก / Retail', 'พลังงาน / Energy', 'การเกษตร / Agriculture', 'อื่นๆ / Other',
+  ];
+
+  const handleSave = async () => {
+    if (!name.trim() || !user) return;
+    setSaving(true);
+    const org = await saveOrganization(null, name.trim(), sector);
+    if (org) {
+      await linkOrgToUser(user.uid, org.id);
+      localStorage.setItem(`innoPB_orgId_${user.uid}`, org.id);
+      onComplete(org.id, name.trim(), sector);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="org-setup-overlay">
+      <div className="org-setup-modal">
+        <div className="org-setup-icon">🏢</div>
+        <div className="org-setup-title">ตั้งค่าองค์กรของคุณ</div>
+        <div className="org-setup-sub">
+          กรอกข้อมูลองค์กรเพื่อเริ่มต้นใช้งาน Innovation Playbook Platform
+        </div>
+
+        <div className="org-setup-fields">
+          <label className="org-setup-label">ชื่อองค์กร *</label>
+          <input
+            className="org-setup-input"
+            placeholder="เช่น บริษัท ABC จำกัด"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            autoFocus
+          />
+
+          <label className="org-setup-label" style={{ marginTop: 14 }}>ประเภทธุรกิจ / Sector</label>
+          <select
+            className="org-setup-select"
+            value={sector}
+            onChange={e => setSector(e.target.value)}
+          >
+            <option value="">-- เลือก Sector --</option>
+            {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+
+        <button
+          className="org-setup-btn"
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+        >
+          {saving ? '⏳ กำลังบันทึก...' : '🚀 เริ่มต้นใช้งาน'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── View modes ───────────────────────────────────────────────────────────────
 type ViewMode = 'board' | 'list' | 'grid';
@@ -290,37 +365,55 @@ function InitiativeDetail({
 export default function InitiativesPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
-  const isSuperAdmin = profile?.role === 'super_admin';
 
-  const [orgId,       setOrgId]       = useState<string | null>(null);
-  const [items,       setItems]       = useState<Initiative[]>([]);
-  const [viewMode,    setViewMode]    = useState<ViewMode>('board');
-  const [showModal,   setShowModal]   = useState(false);
-  const [editTarget,  setEditTarget]  = useState<Initiative | null>(null);
-  const [deleteTarget,setDeleteTarget]= useState<Initiative | null>(null);
-  const [detailItem,  setDetailItem]  = useState<Initiative | null>(null);
-  const [search,      setSearch]      = useState('');
-  const [filterStatus,setFilterStatus]= useState<InitiativeStatus | 'all'>('all');
-  const [filterType,  setFilterType]  = useState<InitiativeType | 'all'>('all');
-  const [sortBy,      setSortBy]      = useState<'createdAt' | 'targetDate' | 'priority' | 'progress'>('createdAt');
-  const [loading,     setLoading]     = useState(true);
-  const [deleting,    setDeleting]    = useState(false);
+  const [orgId,        setOrgId]        = useState<string | null>(null);
+  const [orgName,      setOrgName]      = useState('');
+  const [orgSector,    setOrgSector]    = useState('');
+  const [showOrgSetup, setShowOrgSetup] = useState(false);
+  const [items,        setItems]        = useState<Initiative[]>([]);
+  const [viewMode,     setViewMode]     = useState<ViewMode>('board');
+  const [showModal,    setShowModal]    = useState(false);
+  const [editTarget,   setEditTarget]   = useState<Initiative | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Initiative | null>(null);
+  const [detailItem,   setDetailItem]   = useState<Initiative | null>(null);
+  const [search,       setSearch]       = useState('');
+  const [filterStatus, setFilterStatus] = useState<InitiativeStatus | 'all'>('all');
+  const [filterType,   setFilterType]   = useState<InitiativeType | 'all'>('all');
+  const [sortBy,       setSortBy]       = useState<'createdAt' | 'targetDate' | 'priority' | 'progress'>('createdAt');
+  const [loading,      setLoading]      = useState(true);
+  const [deleting,     setDeleting]     = useState(false);
 
   // Auth guard
   useEffect(() => {
     if (!authLoading && !user) router.replace('/auth/login');
   }, [user, authLoading, router]);
 
-  // Load orgId — super_admin ใช้ uid เป็น fallback orgId
+  // Load orgId — super_admin ใช้ uid เป็น fallback; ผู้ใช้ทั่วไปที่ยังไม่มี org → แสดง setup modal
   useEffect(() => {
-    if (!user) return;
+    if (!user || authLoading) return;
     const local = localStorage.getItem(`innoPB_orgId_${user.uid}`);
     if (local) { setOrgId(local); return; }
     getUserOrgId(user.uid).then(id => {
-      // ถ้าไม่มี orgId (เช่น super_admin) ใช้ uid เป็น namespace
-      setOrgId(id ?? user.uid);
+      if (id) {
+        setOrgId(id);
+      } else if (profile?.role === 'super_admin') {
+        // super_admin ไม่ต้องมี org — ใช้ uid เป็น namespace สำหรับ initiative ของตัวเอง
+        setOrgId(user.uid);
+      } else {
+        // ผู้ใช้ทั่วไปที่ยังไม่ได้ตั้งค่า org → แสดง modal
+        setShowOrgSetup(true);
+        setLoading(false);
+      }
     });
-  }, [user]);
+  }, [user, authLoading, profile?.role]);
+
+  // Load org name for exports
+  useEffect(() => {
+    if (!orgId) return;
+    getOrganizationData(orgId).then(org => {
+      if (org) { setOrgName(org.name); setOrgSector(org.sector || ''); }
+    });
+  }, [orgId]);
 
   // Subscribe to initiatives
   useEffect(() => {
@@ -393,8 +486,12 @@ export default function InitiativesPage() {
   if (authLoading || !user) return null;
 
   return (
-    <div className="layout-root">
-      <Topbar orgName="Innovation Initiatives" orgSector="" onExportPDF={() => {}} onExportExcel={() => {}} />
+    <div className="layout-root gnav-offset">
+      <GlobalNav />
+      <Topbar
+        orgName={orgName || 'Innovation Initiatives'}
+        orgSector={orgSector}
+      />
 
       <div className="init-page">
         {/* ── Page header ── */}
@@ -611,6 +708,17 @@ export default function InitiativesPage() {
           onClose={() => setDetailItem(null)}
           onEdit={() => { handleEdit(detailItem); setDetailItem(null); }}
           onToggleMilestone={msId => handleToggleMS(detailItem, msId)}
+        />
+      )}
+
+      {/* ── Org Setup Modal — แสดงครั้งแรกที่ user ยังไม่มี org ── */}
+      {showOrgSetup && (
+        <OrgSetupModal
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          onComplete={(id, _orgName, _orgSector) => {
+            setOrgId(id);
+            setShowOrgSetup(false);
+          }}
         />
       )}
 

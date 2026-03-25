@@ -19,6 +19,7 @@ import { useAuth, isSuperAdmin } from '@/contexts/AuthContext';
 import { getUserOrgId } from '@/lib/authActions';
 import { getOrganizationData } from '@/lib/actions';
 import UserMenu from '@/components/UserMenu';
+import GlobalNav from '@/components/GlobalNav';
 
 // ─── Expert Card ──────────────────────────────────────────────────────────────
 
@@ -311,9 +312,16 @@ export default function ExpertsPage() {
   useEffect(() => {
     if (!user) return;
     const localId = localStorage.getItem(`innoPB_orgId_${user.uid}`);
-    if (localId) setOrgId(localId);
-    else getUserOrgId(user.uid).then((id) => { if (id) setOrgId(id); });
-  }, [user]);
+    if (localId) { setOrgId(localId); return; }
+    getUserOrgId(user.uid).then((id) => {
+      if (id) {
+        setOrgId(id);
+        localStorage.setItem(`innoPB_orgId_${user.uid}`, id);
+      } else if (profile?.role === 'super_admin') {
+        setOrgId(user.uid);
+      }
+    });
+  }, [user, profile?.role]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -425,7 +433,8 @@ export default function ExpertsPage() {
   }
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+    <div className="gnav-offset" style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+      <GlobalNav />
 
       {/* ── Topbar ──────────────────────────────────────────────────────────── */}
       <div style={{
@@ -463,7 +472,7 @@ export default function ExpertsPage() {
           )}
           <Link href="/canvas" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🗺️ Canvas</Link>
           <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>📊 Dashboard</Link>
-          <Link href="/" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>← Workshop</Link>
+          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
           <UserMenu />
         </div>
       </div>

@@ -14,6 +14,7 @@ import {
 } from '@/lib/authActions';
 import { getAllOrganizations } from '@/lib/actions';
 import UserMenu from '@/components/UserMenu';
+import GlobalNav from '@/components/GlobalNav';
 
 // ─── Role metadata ─────────────────────────────────────────────────────────────
 
@@ -310,7 +311,8 @@ export default function UserManagementPage() {
   if (!isSuperAdmin(profile)) return null;
 
   return (
-    <div className="um-page-root">
+    <div className="um-page-root gnav-offset">
+      <GlobalNav />
       {/* ── Top Bar ── */}
       <div className="um-topbar">
         <div className="um-topbar-left">
@@ -319,7 +321,7 @@ export default function UserManagementPage() {
         </div>
         <div className="um-topbar-right">
           <Link href="/admin" className="um-nav-link">← Admin</Link>
-          <Link href="/"      className="um-nav-link">🏠 Workshop</Link>
+          <Link href="/initiatives" className="um-nav-link">🚀 Initiatives</Link>
           <UserMenu />
         </div>
       </div>

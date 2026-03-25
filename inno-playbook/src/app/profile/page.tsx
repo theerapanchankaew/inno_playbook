@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateDisplayName, updateUserRole, getAllUsers, UserProfile, UserRole } from '@/lib/authActions';
 import { isSuperAdmin } from '@/contexts/AuthContext';
+import GlobalNav from '@/components/GlobalNav';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: '⚡ Super Admin',
@@ -85,7 +86,8 @@ export default function ProfilePage() {
     .slice(0, 2);
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+    <div className="gnav-offset" style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+      <GlobalNav />
       {/* Header */}
       <div style={{ background: 'var(--navy)', padding: '0 24px', height: 50, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid var(--teal)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -94,8 +96,8 @@ export default function ProfilePage() {
             โปรไฟล์ผู้ใช้งาน
           </span>
         </div>
-        <Link href="/" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
-          ← กลับ Workshop
+        <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+          ← กลับ Initiatives
         </Link>
       </div>
 

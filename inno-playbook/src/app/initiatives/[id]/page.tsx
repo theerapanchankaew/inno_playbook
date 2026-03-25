@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { CAPS } from '@/lib/data';
-import { saveInitiativeDeliverable } from '@/lib/actions';
+import { saveInitiativeDeliverable, calcInitiativeReadiness } from '@/lib/actions';
+import { exportToPDF, exportToExcel } from '@/lib/exportActions';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   subscribeToInitiativeDeliverables,
@@ -27,7 +28,6 @@ import VersionHistory from '@/components/VersionHistory';
 import PresenceBar from '@/components/PresenceBar';
 import NotificationBell from '@/components/NotificationBell';
 import UserMenu from '@/components/UserMenu';
-import { calcInitiativeReadiness } from '@/lib/actions';
 
 export default function InitiativeWorkspacePage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -222,6 +222,22 @@ export default function InitiativeWorkspacePage() {
               💾 saving...
             </span>
           )}
+
+          {/* Export buttons */}
+          <button
+            className="topbar-icon-btn"
+            title="Export PDF — ISO 56001 Readiness Report"
+            onClick={() => exportToPDF(initiative.title, initiative.type, data)}
+          >
+            📄
+          </button>
+          <button
+            className="topbar-icon-btn"
+            title="Export Excel"
+            onClick={() => exportToExcel(initiative.title, initiative.type, data)}
+          >
+            📊
+          </button>
 
           {/* Presence */}
           {initiativeId && <PresenceBar contextId={initiativeId} />}

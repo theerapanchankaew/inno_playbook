@@ -22,6 +22,7 @@ import {
 } from '@/lib/realtimeActions';
 import UserMenu from '@/components/UserMenu';
 import NotificationBell from '@/components/NotificationBell';
+import GlobalNav from '@/components/GlobalNav';
 
 type Tab = 'ideas' | 'discussions';
 type IdeaCategory = 'product' | 'process' | 'service' | 'technology' | 'other';
@@ -481,7 +482,8 @@ export default function CommunityPage() {
   const adoptedIdeas = ideas.filter(i => i.status === 'adopted').length;
 
   return (
-    <div className="layout-root" style={{ overflow: 'auto' }}>
+    <div className="layout-root gnav-offset" style={{ overflow: 'auto' }}>
+      <GlobalNav />
 
       {/* ── Topbar ── */}
       <div className="topbar">

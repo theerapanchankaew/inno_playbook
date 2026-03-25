@@ -14,6 +14,7 @@ import {
 import { getAllOrganizations, Organization } from '@/lib/actions';
 import { CAPS } from '@/lib/data';
 import UserMenu from '@/components/UserMenu';
+import GlobalNav from '@/components/GlobalNav';
 
 const TOTAL_FIELDS = CAPS.reduce((a, c) => a + c.deliverables.length, 0);
 
@@ -282,7 +283,8 @@ export default function CohortsPage() {
   if (!isSuperAdmin(profile)) return null;
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+    <div className="gnav-offset" style={{ background: 'var(--bg)', minHeight: '100vh', fontFamily: 'var(--thai)' }}>
+      <GlobalNav />
       {/* Header */}
       <div style={{
         background: 'var(--navy)', padding: '0 24px', height: 50,
@@ -296,7 +298,7 @@ export default function CohortsPage() {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>← Workshop</Link>
+          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
           <Link href="/admin" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Admin</Link>
           <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Dashboard</Link>
           <UserMenu />

@@ -460,3 +460,230 @@ export function exportFacilitatorReport(
   const filename = `facilitator-report-${(cohortName || 'all-orgs').replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
+
+// ─── Initiative List Export ───────────────────────────────────────────────────
+
+export interface InitiativeExportRow {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  priority: string;
+  overallProgress: number;
+  targetDate?: string;
+  budget?: number;
+  ownerName: string;
+  tags: string[];
+  linkedCapId?: string;
+  milestonesDone: number;
+  milestonesTotal: number;
+}
+
+export function exportInitiativesToPDF(
+  initiatives: InitiativeExportRow[],
+  orgLabel: string,
+): void {
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const today = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  // ── Cover header ─────────────────────────────────────────────────────────────
+  pdf.setFillColor(...NAVY);
+  pdf.rect(0, 0, pageW, pageH, 'F');
+  pdf.setFillColor(...TEAL);
+  pdf.rect(0, 0, pageW, 8, 'F');
+
+  // Badge
+  pdf.setFillColor(...TEAL);
+  pdf.roundedRect(14, 22, 55, 12, 3, 3, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('MASCI · ISO 56001', 18, 30);
+
+  // Title
+  pdf.setFontSize(32);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('Innovation', 14, 68);
+  pdf.text('Initiatives', 14, 84);
+
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(148, 163, 184);
+  pdf.text('Project Portfolio Overview', 14, 97);
+
+  pdf.setDrawColor(...TEAL);
+  pdf.setLineWidth(0.5);
+  pdf.line(14, 106, pageW - 14, 106);
+
+  pdf.setFontSize(16);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(orgLabel || 'Organization', 14, 120);
+
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(148, 163, 184);
+  pdf.text(`Generated: ${today}`, 14, 130);
+
+  // Stats row
+  const active   = initiatives.filter(i => i.status === 'active').length;
+  const approved = initiatives.filter(i => i.status === 'approved').length;
+  const avgProg  = initiatives.length
+    ? Math.round(initiatives.reduce((s, i) => s + i.overallProgress, 0) / initiatives.length)
+    : 0;
+
+  const stats = [
+    { label: 'Total', value: String(initiatives.length) },
+    { label: 'Active', value: String(active) },
+    { label: 'Approved', value: String(approved) },
+    { label: 'Avg Progress', value: `${avgProg}%` },
+  ];
+  stats.forEach((s, idx) => {
+    const bx = 14 + idx * 55;
+    pdf.setFillColor(20, 40, 70);
+    pdf.roundedRect(bx, 142, 50, 26, 3, 3, 'F');
+    pdf.setFontSize(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(TEAL[0], TEAL[1], TEAL[2]);
+    pdf.text(s.value, bx + 6, 157);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(s.label, bx + 6, 164);
+  });
+
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(71, 85, 105);
+  pdf.text('Confidential — For Internal Use Only', 14, pageH - 8);
+  pdf.text('Innovation Playbook Platform · MASCI', pageW - 14, pageH - 8, { align: 'right' });
+
+  // ── Initiatives table page ───────────────────────────────────────────────────
+  pdf.addPage();
+  pdf.setFillColor(...LIGHT_GRAY);
+  pdf.rect(0, 0, pageW, pageH, 'F');
+
+  pdf.setFillColor(...NAVY);
+  pdf.rect(0, 0, pageW, 14, 'F');
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('INNOVATION INITIATIVES — PORTFOLIO', 14, 9);
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(148, 163, 184);
+  pdf.text(orgLabel, pageW - 14, 9, { align: 'right' });
+
+  const rows = initiatives.map(i => [
+    i.title.slice(0, 40),
+    i.type,
+    i.status.toUpperCase(),
+    i.priority.toUpperCase(),
+    `${i.overallProgress}%`,
+    i.targetDate || '—',
+    i.ownerName.slice(0, 20),
+    i.milestonesTotal > 0 ? `${i.milestonesDone}/${i.milestonesTotal}` : '—',
+  ]);
+
+  autoTable(pdf, {
+    startY: 20,
+    head: [['Initiative', 'Type', 'Status', 'Priority', 'Progress', 'Target Date', 'Owner', 'Milestones']],
+    body: rows,
+    theme: 'grid',
+    headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: 'bold', fontSize: 8 },
+    bodyStyles: { fontSize: 8, textColor: [30, 41, 59], valign: 'middle' },
+    columnStyles: {
+      0: { cellWidth: 70 },
+      1: { cellWidth: 22, halign: 'center' },
+      2: { cellWidth: 22, halign: 'center' },
+      3: { cellWidth: 20, halign: 'center' },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 28, halign: 'center' },
+      6: { cellWidth: 35 },
+      7: { cellWidth: 22, halign: 'center' },
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    didDrawPage: () => {
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(148, 163, 184);
+      pdf.text('Innovation Playbook Platform · MASCI', 14, pageH - 6);
+      pdf.text(`Page ${pdf.getNumberOfPages()}`, pageW - 14, pageH - 6, { align: 'right' });
+    },
+  });
+
+  const filename = `initiatives-portfolio-${new Date().toISOString().split('T')[0]}.pdf`;
+  pdf.save(filename);
+}
+
+export function exportInitiativesToExcel(
+  initiatives: InitiativeExportRow[],
+  orgLabel: string,
+): void {
+  const wb = XLSX.utils.book_new();
+  const today = new Date().toLocaleDateString();
+
+  // Sheet 1: Summary
+  const headerRows: (string | number)[][] = [
+    ['Innovation Initiatives — Portfolio Report'],
+    ['Organization:', orgLabel || '—'],
+    ['Generated:', today],
+    ['Total Initiatives:', initiatives.length],
+    [],
+    ['Title', 'Type', 'Status', 'Priority', 'Progress (%)', 'Target Date', 'Budget (THB)', 'Owner', 'Milestones Done', 'Milestones Total', 'Linked CAP', 'Tags'],
+  ];
+
+  initiatives.forEach(i => {
+    headerRows.push([
+      i.title,
+      i.type,
+      i.status,
+      i.priority,
+      i.overallProgress,
+      i.targetDate || '',
+      i.budget ?? '',
+      i.ownerName,
+      i.milestonesDone,
+      i.milestonesTotal,
+      i.linkedCapId || '',
+      i.tags.join(', '),
+    ]);
+  });
+
+  // Status summary section
+  headerRows.push([], ['── Status Breakdown ──']);
+  const statusGroups: Record<string, number> = {};
+  initiatives.forEach(i => { statusGroups[i.status] = (statusGroups[i.status] ?? 0) + 1; });
+  Object.entries(statusGroups).forEach(([status, count]) => {
+    headerRows.push([status, count]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(headerRows);
+  ws['!cols'] = [
+    { wch: 50 }, { wch: 16 }, { wch: 12 }, { wch: 12 },
+    { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 25 },
+    { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 40 },
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Portfolio');
+
+  // Sheet 2: By Status
+  const statusOrder = ['active', 'draft', 'review', 'approved', 'archived'];
+  statusOrder.forEach(status => {
+    const group = initiatives.filter(i => i.status === status);
+    if (group.length === 0) return;
+    const rows: (string | number)[][] = [
+      [`Status: ${status.toUpperCase()}`],
+      ['Title', 'Priority', 'Progress (%)', 'Target Date', 'Owner', 'Tags'],
+      ...group.map(i => [i.title, i.priority, i.overallProgress, i.targetDate || '', i.ownerName, i.tags.join(', ')]),
+    ];
+    const wsStatus = XLSX.utils.aoa_to_sheet(rows);
+    wsStatus['!cols'] = [{ wch: 50 }, { wch: 12 }, { wch: 14 }, { wch: 16 }, { wch: 25 }, { wch: 40 }];
+    XLSX.utils.book_append_sheet(wb, wsStatus, status.charAt(0).toUpperCase() + status.slice(1));
+  });
+
+  const filename = `initiatives-portfolio-${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}

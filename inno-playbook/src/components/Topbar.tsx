@@ -6,7 +6,6 @@ import UserMenu from '@/components/UserMenu';
 import PresenceBar from '@/components/PresenceBar';
 import NotificationBell from '@/components/NotificationBell';
 import { useAuth } from '@/contexts/AuthContext';
-import { exportToPDF, exportToExcel } from '@/lib/exportActions';
 
 interface TopbarProps {
   activeCap?: string;
@@ -19,8 +18,6 @@ interface TopbarProps {
   orgSector?: string;
   onShowPlaybook?: () => void;
   onPresent?: () => void;
-  onExportPDF?: () => void;
-  onExportExcel?: () => void;
 }
 
 export default function Topbar({
@@ -34,8 +31,6 @@ export default function Topbar({
   orgSector = '',
   onShowPlaybook,
   onPresent,
-  onExportPDF,
-  onExportExcel,
 }: TopbarProps) {
   const { user } = useAuth();
 
@@ -49,7 +44,7 @@ export default function Topbar({
   return (
     <div className="topbar">
       <div className="topbar-left">
-        <Link href="/" className="topbar-home-link">
+        <Link href="/initiatives" className="topbar-home-link">
           <span className="logo-badge">MASCI · ISO 56001</span>
         </Link>
         <span className="topbar-title">Innovation Playbook Platform</span>
@@ -79,22 +74,6 @@ export default function Topbar({
             })}
           </div>
         )}
-
-        {/* Export buttons */}
-        <button
-          className="topbar-icon-btn"
-          title="Export PDF"
-          onClick={() => onExportPDF ? onExportPDF() : exportToPDF(orgName, orgSector, data)}
-        >
-          📄
-        </button>
-        <button
-          className="topbar-icon-btn"
-          title="Export Excel"
-          onClick={() => onExportExcel ? onExportExcel() : exportToExcel(orgName, orgSector, data)}
-        >
-          📊
-        </button>
 
         {/* Navigation links */}
         <Link href="/initiatives" className="topbar-icon-btn" title="Innovation Initiatives">
