@@ -7,9 +7,10 @@ import { db } from '@/lib/firebase';
 import {
   collection,
   doc,
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
@@ -32,8 +33,6 @@ interface CanvasNode {
   color: NoteColor;
   tag: string;
   createdBy: string;
-  createdAt: any;
-  updatedAt: any;
 }
 
 const NOTE_COLORS: Record<NoteColor, { bg: string; border: string; text: string; label: string }> = {
@@ -50,43 +49,51 @@ const NOTE_TAGS = [
   '✅ Action', '❓ Question', '🔗 Link', '📌 Key Point',
 ];
 
-const DEFAULT_W = 200;
-const DEFAULT_H = 130;
+const W = 200;
+const H = 130;
 
-// ─── Canvas Page ─────────────────────────────────────────────────────────────
+function uid() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CanvasPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [orgId, setOrgId]       = useState<string | null>(null);
-  const [nodes, setNodes]       = useState<CanvasNode[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [editingId, setEditingId]   = useState<string | null>(null);
-  const [editText, setEditText]     = useState('');
-  const [activeColor, setActiveColor] = useState<NoteColor>('yellow');
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [orgId, setOrgId]               = useState<string | null>(null);
+  const [nodes, setNodes]               = useState<CanvasNode[]>([]);
+  const [selectedId, setSelectedId]     = useState<string | null>(null);
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [editText, setEditText]         = useState('');
+  const [activeColor, setActiveColor]   = useState<NoteColor>('yellow');
+  const [toast, setToast]               = useState('');
+  const [pan, setPan]                   = useState({ x: 60, y: 60 });
+  const [zoom, setZoom]                 = useState(1);
 
-  // pan / zoom
-  const [pan,  setPan]  = useState({ x: 60, y: 60 });
-  const [zoom, setZoom] = useState(1);
-  const panRef    = useRef(pan);
-  const zoomRef   = useRef(zoom);
-  useEffect(() => { panRef.current = pan; },  [pan]);
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  // ── Refs (avoid stale closure, mutable without re-render) ─────────────────
+  const orgIdRef       = useRef<string | null>(null);
+  const userRef        = useRef(user);
+  const activeColorRef = useRef(activeColor);
+  const panRef         = useRef(pan);
+  const zoomRef        = useRef(zoom);
+  const viewportRef    = useRef<HTMLDivElement>(null);
+  const isDragging     = useRef(false);
+  const dragId         = useRef<string | null>(null);
+  const dragStart      = useRef({ mx: 0, my: 0, nx: 0, ny: 0 });
+  const isPanning      = useRef(false);
+  const panStart       = useRef({ mx: 0, my: 0, px: 0, py: 0 });
 
-  // drag refs (mutable, no re-render needed)
-  const isDragging  = useRef(false);
-  const dragId      = useRef<string | null>(null);
-  const dragStart   = useRef({ mx: 0, my: 0, nx: 0, ny: 0 }); // mouse + node start pos
+  // Keep refs in sync
+  useEffect(() => { orgIdRef.current       = orgId;       }, [orgId]);
+  useEffect(() => { userRef.current        = user;        }, [user]);
+  useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
+  useEffect(() => { panRef.current         = pan;         }, [pan]);
+  useEffect(() => { zoomRef.current        = zoom;        }, [zoom]);
 
-  // pan refs
-  const isPanning   = useRef(false);
-  const panStart    = useRef({ mx: 0, my: 0, px: 0, py: 0 });
-
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const unsubRef    = useRef<(() => void) | null>(null);
-
-  // ── Auth ─────────────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authLoading && !user) router.replace('/auth/login');
   }, [user, authLoading, router]);
@@ -95,145 +102,172 @@ export default function CanvasPage() {
     if (!user) return;
     const cached = localStorage.getItem(`innoPB_orgId_${user.uid}`);
     if (cached) { setOrgId(cached); return; }
-    getUserOrgId(user.uid).then((id) => { if (id) setOrgId(id); });
+    getUserOrgId(user.uid).then(id => { if (id) setOrgId(id); });
   }, [user]);
 
-  // ── Firestore realtime ────────────────────────────────────────────────────────
+  // ── Load from Firestore (with fallback) ────────────────────────────────────
   useEffect(() => {
     if (!orgId) return;
-    unsubRef.current?.();
+
+    // First: try live subscription
     const q = query(collection(db, 'canvases', orgId, 'nodes'));
-    unsubRef.current = onSnapshot(q, (snap) => {
-      setNodes(
-        snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CanvasNode, 'id'>) })),
-      );
-    });
-    return () => unsubRef.current?.();
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        // Merge: keep local-only nodes (id starts with timestamp pattern), add Firestore nodes
+        setNodes(prev => {
+          const firestoreNodes = snap.docs.map(d => ({
+            id: d.id,
+            ...(d.data() as Omit<CanvasNode, 'id'>),
+          }));
+          // Keep local nodes that aren't yet in Firestore
+          const localOnly = prev.filter(n => !firestoreNodes.some(f => f.id === n.id));
+          return [...firestoreNodes, ...localOnly];
+        });
+      },
+      (err) => {
+        // Firestore rules not yet deployed → fall back to getDocs once
+        console.warn('Canvas: onSnapshot error (rules may not be deployed):', err.message);
+        getDocs(q)
+          .then(snap => setNodes(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<CanvasNode, 'id'>) }))))
+          .catch(() => {/* offline or no rules – local state is fine */});
+      },
+    );
+    return () => unsub();
   }, [orgId]);
 
-  // ── Add note — double-click on empty canvas ───────────────────────────────────
-  const handleDoubleClick = useCallback(
-    async (e: React.MouseEvent<HTMLDivElement>) => {
-      // Ignore if we just finished dragging
-      if (isDragging.current) return;
-      if (!orgId || !user) return;
+  // ── Toast helper ───────────────────────────────────────────────────────────
+  const showToast = useCallback((msg: string, ms = 3500) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), ms);
+  }, []);
 
-      const rect = viewportRef.current!.getBoundingClientRect();
-      const x = (e.clientX - rect.left - panRef.current.x) / zoomRef.current;
-      const y = (e.clientY - rect.top  - panRef.current.y) / zoomRef.current;
+  // ── Sync one node to Firestore (fire-and-forget) ───────────────────────────
+  const syncNode = useCallback((node: CanvasNode) => {
+    const oid = orgIdRef.current;
+    if (!oid) return;
+    setDoc(doc(db, 'canvases', oid, 'nodes', node.id), {
+      x: node.x, y: node.y, w: node.w, h: node.h,
+      text: node.text, color: node.color, tag: node.tag,
+      createdBy: node.createdBy,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }).catch(err => {
+      console.warn('Canvas: sync failed –', err.message);
+      showToast('⚠️ Note saved locally — deploy Firestore rules to sync across devices');
+    });
+  }, [showToast]);
 
-      const ref = await addDoc(collection(db, 'canvases', orgId, 'nodes'), {
-        x,
-        y,
-        w: DEFAULT_W,
-        h: DEFAULT_H,
-        text: '',
-        color: activeColor,
-        tag: '',
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+  // ── Add note: OPTIMISTIC — note appears instantly, Firestore in background ──
+  const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging.current) return;
 
-      // Auto-open editing on the new note
-      setSelectedId(ref.id);
-      setEditingId(ref.id);
-      setEditText('');
-    },
-    [orgId, user, activeColor],
-  );
+    const oid  = orgIdRef.current;
+    const usr  = userRef.current;
+    const col  = activeColorRef.current;
 
-  // ── Delete note ───────────────────────────────────────────────────────────────
-  const deleteNote = useCallback(
-    async (id: string) => {
-      if (!orgId) return;
-      await deleteDoc(doc(db, 'canvases', orgId, 'nodes', id));
-      setSelectedId((s) => (s === id ? null : s));
-      setEditingId((e) => (e === id ? null : e));
-    },
-    [orgId],
-  );
+    if (!oid || !usr) {
+      showToast('⚠️ No organization linked — go to Workshop first');
+      return;
+    }
 
-  // ── Save text ─────────────────────────────────────────────────────────────────
-  const saveText = useCallback(
-    async (id: string, text: string) => {
-      if (!orgId) return;
-      await updateDoc(doc(db, 'canvases', orgId, 'nodes', id), {
-        text,
-        updatedAt: serverTimestamp(),
-      });
-      setEditingId(null);
-    },
-    [orgId],
-  );
+    // Calculate canvas coordinates
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = (e.clientX - rect.left - panRef.current.x) / zoomRef.current;
+    const y = (e.clientY - rect.top  - panRef.current.y) / zoomRef.current;
 
-  // ── Change color ──────────────────────────────────────────────────────────────
-  const changeColor = useCallback(
-    async (id: string, color: NoteColor) => {
-      if (!orgId) return;
-      setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, color } : n)));
-      await updateDoc(doc(db, 'canvases', orgId, 'nodes', id), { color });
-    },
-    [orgId],
-  );
+    // 1. Create note locally — appears IMMEDIATELY
+    const newNode: CanvasNode = {
+      id: uid(), x, y, w: W, h: H,
+      text: '', color: col, tag: '',
+      createdBy: usr.uid,
+    };
 
-  // ── Change tag ────────────────────────────────────────────────────────────────
-  const changeTag = useCallback(
-    async (id: string, tag: string) => {
-      if (!orgId) return;
-      setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, tag } : n)));
-      await updateDoc(doc(db, 'canvases', orgId, 'nodes', id), { tag });
-    },
-    [orgId],
-  );
+    setNodes(prev => [...prev, newNode]);
+    setSelectedId(newNode.id);
+    setEditingId(newNode.id);
+    setEditText('');
 
-  // ── Mouse down ────────────────────────────────────────────────────────────────
-  const onViewportMouseDown = (e: React.MouseEvent) => {
-    // Always reset drag state on any mousedown on the viewport
+    // 2. Persist to Firestore in background (does not block UI)
+    syncNode(newNode);
+  }, [showToast, syncNode]);
+
+  // ── Delete note ────────────────────────────────────────────────────────────
+  const deleteNote = useCallback((id: string) => {
+    setNodes(prev => prev.filter(n => n.id !== id));
+    setSelectedId(s  => s  === id ? null : s);
+    setEditingId(ei => ei === id ? null : ei);
+
+    const oid = orgIdRef.current;
+    if (oid) {
+      deleteDoc(doc(db, 'canvases', oid, 'nodes', id)).catch(() => {});
+    }
+  }, []);
+
+  // ── Save text ──────────────────────────────────────────────────────────────
+  const saveText = useCallback((id: string, text: string) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, text } : n));
+    setEditingId(null);
+
+    const oid = orgIdRef.current;
+    if (oid) {
+      updateDoc(doc(db, 'canvases', oid, 'nodes', id), {
+        text, updatedAt: serverTimestamp(),
+      }).catch(() => {});
+    }
+  }, []);
+
+  // ── Change color ───────────────────────────────────────────────────────────
+  const changeColor = useCallback((id: string, color: NoteColor) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, color } : n));
+    const oid = orgIdRef.current;
+    if (oid) updateDoc(doc(db, 'canvases', oid, 'nodes', id), { color }).catch(() => {});
+  }, []);
+
+  // ── Change tag ─────────────────────────────────────────────────────────────
+  const changeTag = useCallback((id: string, tag: string) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, tag } : n));
+    const oid = orgIdRef.current;
+    if (oid) updateDoc(doc(db, 'canvases', oid, 'nodes', id), { tag }).catch(() => {});
+  }, []);
+
+  // ── Mouse handlers ─────────────────────────────────────────────────────────
+  const onViewportMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = false;
-    dragId.current = null;
+    dragId.current     = null;
 
     if (e.button === 1 || e.altKey) {
-      // Pan mode: middle-click or Alt + left-drag
       e.preventDefault();
       isPanning.current = true;
-      panStart.current = { mx: e.clientX, my: e.clientY, px: panRef.current.x, py: panRef.current.y };
+      panStart.current  = { mx: e.clientX, my: e.clientY, px: panRef.current.x, py: panRef.current.y };
     } else {
-      // Deselect when clicking empty canvas
       setSelectedId(null);
     }
-  };
+  }, []);
 
-  const onNoteMouseDown = (e: React.MouseEvent, nodeId: string) => {
+  const onNoteMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
     isDragging.current = false;
-    dragId.current = nodeId;
-    const node = nodes.find((n) => n.id === nodeId)!;
-    dragStart.current = {
-      mx: e.clientX,
-      my: e.clientY,
-      nx: node.x,
-      ny: node.y,
-    };
+    dragId.current     = nodeId;
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    dragStart.current  = { mx: e.clientX, my: e.clientY, nx: node.x, ny: node.y };
     setSelectedId(nodeId);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes]);
 
-  // ── Mouse move ────────────────────────────────────────────────────────────────
-  const onMouseMove = (e: React.MouseEvent) => {
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragId.current !== null) {
       const dx = (e.clientX - dragStart.current.mx) / zoomRef.current;
       const dy = (e.clientY - dragStart.current.my) / zoomRef.current;
-
       if (!isDragging.current && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
         isDragging.current = true;
       }
-
       if (isDragging.current) {
-        const newX = dragStart.current.nx + dx;
-        const newY = dragStart.current.ny + dy;
-        setNodes((prev) =>
-          prev.map((n) => (n.id === dragId.current ? { ...n, x: newX, y: newY } : n)),
-        );
+        const nx = dragStart.current.nx + dx;
+        const ny = dragStart.current.ny + dy;
+        setNodes(prev => prev.map(n => n.id === dragId.current ? { ...n, x: nx, y: ny } : n));
       }
     } else if (isPanning.current) {
       setPan({
@@ -241,61 +275,63 @@ export default function CanvasPage() {
         y: panStart.current.py + (e.clientY - panStart.current.my),
       });
     }
-  };
+  }, []);
 
-  // ── Mouse up ──────────────────────────────────────────────────────────────────
-  const onMouseUp = (e: React.MouseEvent) => {
-    if (dragId.current !== null && isDragging.current) {
-      // Persist final position
-      const node = nodes.find((n) => n.id === dragId.current);
-      if (node && orgId) {
-        updateDoc(doc(db, 'canvases', orgId, 'nodes', node.id), { x: node.x, y: node.y }).catch(() => {});
-      }
+  const onMouseUp = useCallback(() => {
+    // Persist position after drag
+    if (dragId.current && isDragging.current) {
+      const oid  = orgIdRef.current;
+      const id   = dragId.current;
+      setNodes(prev => {
+        const node = prev.find(n => n.id === id);
+        if (node && oid) {
+          updateDoc(doc(db, 'canvases', oid, 'nodes', id), { x: node.x, y: node.y }).catch(() => {});
+        }
+        return prev;
+      });
     }
-    // Always reset — this is the key fix
+    // Always reset — critical fix
     isDragging.current = false;
-    dragId.current = null;
-    isPanning.current = false;
-  };
+    dragId.current     = null;
+    isPanning.current  = false;
+  }, []);
 
-  // ── Wheel zoom ────────────────────────────────────────────────────────────────
-  const onWheel = (e: React.WheelEvent) => {
+  const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    setZoom((z) => Math.min(2.5, Math.max(0.25, z * (e.deltaY > 0 ? 0.92 : 1.09))));
-  };
+    setZoom(z => Math.min(2.5, Math.max(0.25, z * (e.deltaY > 0 ? 0.92 : 1.09))));
+  }, []);
 
-  // ── Loading screen ────────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (authLoading || !profile) {
     return (
       <div className="canvas-loading">
         <span className="logo-badge">MASCI · ISO 56001</span>
         <div style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 12, marginTop: 12 }}>
-          Loading Canvas...
+          Loading Canvas…
         </div>
       </div>
     );
   }
 
-  const selectedNode = nodes.find((n) => n.id === selectedId);
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="canvas-page">
 
-      {/* ── Topbar ──────────────────────────────────────────────────────────── */}
+      {/* ── Topbar ────────────────────────────────────────────────────────── */}
       <div className="canvas-topbar">
         <div className="canvas-topbar-left">
           <span className="logo-badge">MASCI · ISO 56001</span>
           <span className="canvas-topbar-title">🗺️ Innovation Canvas</span>
-          {orgId && (
-            <span className="canvas-topbar-badge">{nodes.length} notes</span>
-          )}
+          <span className="canvas-topbar-badge">{nodes.length} notes</span>
         </div>
         <div className="canvas-topbar-actions">
-          <span className="canvas-hint">Double-click to add · Drag to move · Alt+drag or middle-click to pan · Scroll to zoom</span>
+          <span className="canvas-hint">
+            Double-click = add note · Drag = move · Alt+drag = pan · Scroll = zoom
+          </span>
           <div className="canvas-zoom-ctrl">
-            <button className="canvas-zoom-btn" onClick={() => setZoom((z) => Math.max(0.25, z - 0.1))}>−</button>
+            <button className="canvas-zoom-btn" onClick={() => setZoom(z => Math.max(0.25, z - 0.1))}>−</button>
             <span className="canvas-zoom-val">{Math.round(zoom * 100)}%</span>
-            <button className="canvas-zoom-btn" onClick={() => setZoom((z) => Math.min(2.5, z + 0.1))}>+</button>
+            <button className="canvas-zoom-btn" onClick={() => setZoom(z => Math.min(2.5, z + 0.1))}>+</button>
             <button className="canvas-zoom-btn" title="Reset view" onClick={() => { setZoom(1); setPan({ x: 60, y: 60 }); }}>⌂</button>
           </div>
           <Link href="/dashboard" className="canvas-nav-link">📊 Dashboard</Link>
@@ -305,9 +341,9 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      {/* ── Color palette (top legend) ───────────────────────────────────────── */}
+      {/* ── Color palette ─────────────────────────────────────────────────── */}
       <div className="canvas-legend">
-        <span className="canvas-legend-tip">Note color:</span>
+        <span className="canvas-legend-tip">Color:</span>
         {(Object.entries(NOTE_COLORS) as [NoteColor, typeof NOTE_COLORS[NoteColor]][]).map(([key, c]) => (
           <button
             key={key}
@@ -321,20 +357,23 @@ export default function CanvasPage() {
         ))}
         <div className="canvas-legend-divider" />
         <span className="canvas-legend-tip" style={{ color: '#0B7B74', fontWeight: 700 }}>
-          Double-click on canvas to add a note
+          ✦ Double-click on canvas to add a note
         </span>
       </div>
 
-      {/* ── Canvas or empty-org message ──────────────────────────────────────── */}
-      {!orgId ? (
+      {/* ── No org warning ────────────────────────────────────────────────── */}
+      {!orgId && !authLoading && (
         <div className="canvas-empty-org">
           <div style={{ fontSize: 48 }}>🗺️</div>
           <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--navy)' }}>No organization linked</div>
           <div style={{ color: 'var(--muted)', marginTop: 8 }}>
-            Go to the <Link href="/" style={{ color: 'var(--teal)' }}>Workshop</Link> first to set up your organization.
+            Go to the <Link href="/" style={{ color: 'var(--teal)' }}>Workshop</Link> and fill in your organization name first.
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* ── Canvas viewport ───────────────────────────────────────────────── */}
+      {(orgId || nodes.length > 0) && (
         <div
           ref={viewportRef}
           className="canvas-viewport"
@@ -345,120 +384,102 @@ export default function CanvasPage() {
           onDoubleClick={handleDoubleClick}
           onWheel={onWheel}
         >
-          {/* Dot-grid background */}
+          {/* Dot grid */}
           <div
             className="canvas-grid"
             style={{
-              transform: `translate(${pan.x % 28}px, ${pan.y % 28}px)`,
               backgroundSize: `${28 * zoom}px ${28 * zoom}px`,
+              backgroundPosition: `${pan.x % (28 * zoom)}px ${pan.y % (28 * zoom)}px`,
             }}
           />
 
-          {/* Notes layer */}
+          {/* Notes */}
           <div
             className="canvas-nodes"
-            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}
+            style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin: '0 0' }}
           >
-            {nodes.map((node) => {
-              const colors   = NOTE_COLORS[node.color] ?? NOTE_COLORS.yellow;
-              const isSel    = selectedId === node.id;
-              const isEditing = editingId === node.id;
+            {nodes.map(node => {
+              const c       = NOTE_COLORS[node.color] ?? NOTE_COLORS.yellow;
+              const isSel   = selectedId === node.id;
+              const isEdit  = editingId  === node.id;
 
               return (
                 <div
                   key={node.id}
                   className={`canvas-note ${isSel ? 'selected' : ''}`}
                   style={{
-                    left: node.x,
-                    top: node.y,
-                    width: node.w,
-                    minHeight: node.h,
-                    background: colors.bg,
-                    borderColor: isSel ? '#0B7B74' : colors.border,
+                    left: node.x, top: node.y, width: node.w, minHeight: node.h,
+                    background: c.bg,
+                    borderColor: isSel ? '#0B7B74' : c.border,
                     boxShadow: isSel
                       ? '0 0 0 2px #0B7B74, 0 6px 24px rgba(0,0,0,.14)'
                       : '0 2px 8px rgba(0,0,0,.08)',
                   }}
-                  onMouseDown={(e) => onNoteMouseDown(e, node.id)}
-                  onClick={(e) => { e.stopPropagation(); if (!isDragging.current) setSelectedId(node.id); }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
+                  onMouseDown={ev => onNoteMouseDown(ev, node.id)}
+                  onClick={ev => { ev.stopPropagation(); if (!isDragging.current) setSelectedId(node.id); }}
+                  onDoubleClick={ev => {
+                    ev.stopPropagation();
                     setEditingId(node.id);
                     setEditText(node.text);
                   }}
                 >
-                  {/* Tag badge */}
                   {node.tag && (
-                    <div className="canvas-note-tag" style={{ color: colors.text, borderColor: colors.border }}>
+                    <div className="canvas-note-tag" style={{ color: c.text, borderColor: c.border }}>
                       {node.tag}
                     </div>
                   )}
 
-                  {/* Text area / display */}
-                  {isEditing ? (
+                  {isEdit ? (
                     <textarea
                       className="canvas-note-edit"
-                      style={{ color: colors.text }}
+                      style={{ color: c.text }}
                       value={editText}
                       autoFocus
-                      placeholder="Type your idea..."
-                      onChange={(e) => setEditText(e.target.value)}
+                      placeholder="Type your idea…"
+                      onChange={ev => setEditText(ev.target.value)}
                       onBlur={() => saveText(node.id, editText)}
-                      onKeyDown={(e) => {
-                        e.stopPropagation();
-                        if (e.key === 'Escape') { setEditingId(null); }
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveText(node.id, editText);
+                      onKeyDown={ev => {
+                        ev.stopPropagation();
+                        if (ev.key === 'Escape') setEditingId(null);
+                        if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) saveText(node.id, editText);
                       }}
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={ev => ev.stopPropagation()}
+                      onMouseDown={ev => ev.stopPropagation()}
                     />
                   ) : (
-                    <div
-                      className="canvas-note-text"
-                      style={{ color: node.text ? colors.text : '#94A3B8' }}
-                    >
+                    <div className="canvas-note-text" style={{ color: node.text ? c.text : '#94A3B8' }}>
                       {node.text || 'Double-click to edit…'}
                     </div>
                   )}
 
-                  {/* Toolbar (visible when selected, not editing) */}
-                  {isSel && !isEditing && (
-                    <div className="canvas-note-toolbar" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-                      {/* Color dots */}
+                  {isSel && !isEdit && (
+                    <div
+                      className="canvas-note-toolbar"
+                      onClick={ev => ev.stopPropagation()}
+                      onMouseDown={ev => ev.stopPropagation()}
+                    >
                       <div className="canvas-toolbar-colors">
-                        {(Object.keys(NOTE_COLORS) as NoteColor[]).map((c) => (
+                        {(Object.keys(NOTE_COLORS) as NoteColor[]).map(col => (
                           <button
-                            key={c}
-                            className={`canvas-color-dot ${node.color === c ? 'active' : ''}`}
-                            style={{ background: NOTE_COLORS[c].border }}
-                            onClick={() => changeColor(node.id, c)}
-                            title={NOTE_COLORS[c].label}
+                            key={col}
+                            className={`canvas-color-dot ${node.color === col ? 'active' : ''}`}
+                            style={{ background: NOTE_COLORS[col].border }}
+                            onClick={() => changeColor(node.id, col)}
+                            title={NOTE_COLORS[col].label}
                           />
                         ))}
                       </div>
-
-                      {/* Tag selector */}
                       <select
                         className="canvas-tag-select"
                         value={node.tag || ''}
-                        onChange={(e) => changeTag(node.id, e.target.value)}
+                        onChange={ev => changeTag(node.id, ev.target.value)}
                       >
-                        {NOTE_TAGS.map((t) => (
+                        {NOTE_TAGS.map(t => (
                           <option key={t} value={t}>{t || '— no tag —'}</option>
                         ))}
                       </select>
-
-                      {/* Edit / Delete */}
-                      <button
-                        className="canvas-toolbar-btn edit"
-                        onClick={() => { setEditingId(node.id); setEditText(node.text); }}
-                        title="Edit"
-                      >✏️</button>
-                      <button
-                        className="canvas-toolbar-btn del"
-                        onClick={() => deleteNote(node.id)}
-                        title="Delete"
-                      >🗑</button>
+                      <button className="canvas-toolbar-btn edit" onClick={() => { setEditingId(node.id); setEditText(node.text); }} title="Edit">✏️</button>
+                      <button className="canvas-toolbar-btn del" onClick={() => deleteNote(node.id)} title="Delete">🗑</button>
                     </div>
                   )}
                 </div>
@@ -466,16 +487,19 @@ export default function CanvasPage() {
             })}
           </div>
 
-          {/* Empty-canvas hint */}
+          {/* Empty hint */}
           {nodes.length === 0 && (
             <div className="canvas-empty-hint">
               <div className="canvas-empty-icon">🗺️</div>
-              <div className="canvas-empty-text">Your canvas is empty</div>
+              <div className="canvas-empty-text">Canvas is ready</div>
               <div className="canvas-empty-sub">Double-click anywhere to add your first idea note</div>
             </div>
           )}
         </div>
       )}
+
+      {/* ── Toast ─────────────────────────────────────────────────────────── */}
+      {toast && <div className="expert-toast">{toast}</div>}
     </div>
   );
 }
