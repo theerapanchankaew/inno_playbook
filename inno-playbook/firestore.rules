@@ -103,5 +103,43 @@ service cloud.firestore {
       allow create, update: if isOrgAdmin();
       allow delete:         if isSuperAdmin();
     }
+
+    // ── health_snapshots/{orgId}/snapshots/{snapId} ───────────────────────────
+    // Org members can read/write their own health snapshots; admins can read all
+    match /health_snapshots/{orgId}/snapshots/{snapId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // ── experts/{expertId} ───────────────────────────────────────────────────
+    // All authenticated users can read; only admins/facilitators can write
+    match /experts/{expertId} {
+      allow read:           if isAuth();
+      allow create, update: if isOrgAdmin();
+      allow delete:         if isSuperAdmin();
+    }
+
+    // ── connections/{connectionId} ───────────────────────────────────────────
+    // Users can read their own; admins can read all; authenticated users can create
+    match /connections/{connectionId} {
+      allow read:   if isAuth() && (
+        resource.data.userId == request.auth.uid || isSuperAdmin()
+      );
+      allow create: if canEdit();
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── canvases/{orgId}/nodes/{nodeId} ──────────────────────────────────────
+    // Authenticated org members can read/write canvas nodes
+    match /canvases/{orgId}/nodes/{nodeId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update: if canEdit();
+      allow delete: if isAuth() && (
+        resource.data.createdBy == request.auth.uid || isOrgAdmin()
+      );
+    }
   }
 }

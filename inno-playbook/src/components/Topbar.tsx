@@ -87,7 +87,13 @@ export default function Topbar({
           📊
         </button>
 
-        {/* Dashboard link */}
+        {/* Navigation links */}
+        <Link href="/canvas" className="topbar-icon-btn" title="Innovation Canvas">
+          🗺️
+        </Link>
+        <Link href="/experts" className="topbar-icon-btn" title="Expert Network">
+          👥
+        </Link>
         <Link href="/dashboard" className="topbar-icon-btn" title="Dashboard">
           📈
         </Link>
