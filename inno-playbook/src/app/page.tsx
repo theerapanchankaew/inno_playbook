@@ -48,10 +48,13 @@ export default function Home() {
   // Track previous content for version diffing
   const prevContentRef = useRef<Record<string, string>>({});
 
-  // ── Redirect if not authenticated ───────────────────────────────────────────
+  // ── Redirect: authenticated → /initiatives, guest → /auth/login ─────────────
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+    if (!user) {
       router.replace('/auth/login');
+    } else {
+      router.replace('/initiatives');
     }
   }, [user, authLoading, router]);
 

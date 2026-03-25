@@ -10,6 +10,9 @@ interface WorkspaceProps {
   setActiveTab: (tab: string) => void;
   data: Record<string, string>;
   onFieldChange: (capId: string, fieldId: string, content: string) => void;
+  /** contextId accepts either orgId (legacy) or initiativeId (new flow) */
+  contextId?: string | null;
+  /** @deprecated use contextId */
   orgId?: string | null;
   onOpenComments?: (fieldId: string, fieldLabel: string) => void;
   onOpenVersionHistory?: (fieldId: string, fieldLabel: string) => void;
@@ -21,10 +24,13 @@ export default function Workspace({
   setActiveTab,
   data,
   onFieldChange,
+  contextId,
   orgId,
   onOpenComments,
   onOpenVersionHistory,
 }: WorkspaceProps) {
+  // Support both contextId (new) and orgId (legacy)
+  const effectiveContextId = contextId ?? orgId;
   const c = CAPS.find(x => x.id === activeCap);
   if (!c) return null;
 
@@ -67,7 +73,7 @@ export default function Workspace({
             c={c}
             data={data}
             onFieldChange={onFieldChange}
-            orgId={orgId}
+            orgId={effectiveContextId}
             onOpenComments={onOpenComments}
             onOpenVersionHistory={onOpenVersionHistory}
           />
@@ -78,7 +84,7 @@ export default function Workspace({
             p={p}
             data={data}
             onFieldChange={onFieldChange}
-            orgId={orgId}
+            orgId={effectiveContextId}
             onOpenComments={onOpenComments}
             onOpenVersionHistory={onOpenVersionHistory}
           />
@@ -92,15 +98,15 @@ export default function Workspace({
 
 // ─── Comment count hook ───────────────────────────────────────────────────────
 
-function useCommentCount(orgId: string | null | undefined, fieldId: string): number {
+function useCommentCount(contextId: string | null | undefined, fieldId: string): number {
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (!orgId) return;
-    const unsub = subscribeToComments(orgId, fieldId, (comments) => {
+    if (!contextId) return;
+    const unsub = subscribeToComments(contextId, fieldId, (comments) => {
       setCount(comments.length);
     });
     return unsub;
-  }, [orgId, fieldId]);
+  }, [contextId, fieldId]);
   return count;
 }
 

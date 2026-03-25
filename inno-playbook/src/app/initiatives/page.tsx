@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Initiative,
@@ -138,7 +139,14 @@ function InitiativeCard({
             ))}
           </select>
         )}
-        <button className="init-card-edit-btn" onClick={() => onEdit(item)}>✏️ แก้ไข</button>
+        <a
+          className="init-card-workspace-btn"
+          href={`/initiatives/${item.id}`}
+          onClick={e => e.stopPropagation()}
+        >
+          🗺 Workspace
+        </a>
+        <button className="init-card-edit-btn" onClick={() => onEdit(item)}>✏️</button>
         <button className="init-card-del-btn"  onClick={() => onDelete(item)}>🗑</button>
       </div>
     </div>
@@ -395,9 +403,14 @@ export default function InitiativesPage() {
             <div className="init-page-title">🚀 Innovation Initiatives</div>
             <div className="init-page-sub">จัดการ Innovation Projects ทั้งหมดขององค์กร</div>
           </div>
-          <button className="init-create-btn" onClick={handleCreate}>
-            ➕ สร้าง Initiative ใหม่
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <Link href="/community" className="init-community-btn">
+              💡 Community Space
+            </Link>
+            <button className="init-create-btn" onClick={handleCreate}>
+              ➕ สร้าง Initiative ใหม่
+            </button>
+          </div>
         </div>
 
         {/* ── Stats bar ── */}
@@ -566,7 +579,8 @@ export default function InitiativesPage() {
                     <span style={{flex:1,fontSize:11,color: overdue ? '#DC2626' : '#64748B'}}>
                       {item.targetDate || '—'}
                     </span>
-                    <span style={{width:80,display:'flex',gap:4}} onClick={e => e.stopPropagation()}>
+                    <span style={{width:110,display:'flex',gap:4}} onClick={e => e.stopPropagation()}>
+                      <a className="init-card-workspace-btn" href={`/initiatives/${item.id}`} style={{padding:'4px 8px',fontSize:10}}>🗺</a>
                       <button className="init-card-edit-btn" style={{padding:'4px 8px',fontSize:11}} onClick={() => handleEdit(item)}>✏️</button>
                       <button className="init-card-del-btn"  style={{padding:'4px 8px',fontSize:11}} onClick={() => setDeleteTarget(item)}>🗑</button>
                     </span>

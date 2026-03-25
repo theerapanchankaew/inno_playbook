@@ -104,8 +104,9 @@ export async function clearPresence(orgId: string, userId: string): Promise<void
   await deleteDoc(doc(db, 'presence', orgId, 'users', userId));
 }
 
-// ─── Real-time deliverable listener ──────────────────────────────────────────
+// ─── Real-time deliverable listeners ─────────────────────────────────────────
 
+/** Legacy: subscribe by orgId */
 export function subscribeToDeliverables(
   orgId: string,
   callback: (data: Record<string, string>) => void,
@@ -113,10 +114,20 @@ export function subscribeToDeliverables(
   const q = query(collection(db, 'deliverables'), where('orgId', '==', orgId));
   return onSnapshot(q, (snap) => {
     const data: Record<string, string> = {};
-    snap.docs.forEach((d) => {
-      const doc = d.data();
-      data[doc.fieldId] = doc.content;
-    });
+    snap.docs.forEach((d) => { const row = d.data(); data[row.fieldId] = row.content; });
+    callback(data);
+  });
+}
+
+/** NEW: subscribe by initiativeId (primary workspace flow) */
+export function subscribeToInitiativeDeliverables(
+  initiativeId: string,
+  callback: (data: Record<string, string>) => void,
+): () => void {
+  const q = query(collection(db, 'deliverables'), where('initiativeId', '==', initiativeId));
+  return onSnapshot(q, (snap) => {
+    const data: Record<string, string> = {};
+    snap.docs.forEach((d) => { const row = d.data(); data[row.fieldId] = row.content; });
     callback(data);
   });
 }
@@ -354,4 +365,157 @@ export async function getCohortOrgs(cohortId: string): Promise<Organization[]> {
     }
   }
   return orgs;
+}
+
+// ─── Community ────────────────────────────────────────────────────────────────
+// Collections: community_ideas/{ideaId}, community_discussions/{threadId}
+
+export interface CommunityIdea {
+  id: string;
+  orgId: string;
+  authorId: string;
+  authorName: string;
+  title: string;
+  description: string;
+  category: string;         // 'product' | 'process' | 'service' | 'technology' | 'other'
+  votes: string[];          // array of userIds who upvoted
+  tags: string[];
+  linkedInitiativeId?: string;
+  status: 'open' | 'in_review' | 'adopted' | 'closed';
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface DiscussionThread {
+  id: string;
+  orgId: string;
+  authorId: string;
+  authorName: string;
+  title: string;
+  body: string;
+  category: string;
+  replyCount: number;
+  pinned: boolean;
+  createdAt: any;
+}
+
+export interface DiscussionReply {
+  id: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: any;
+}
+
+// Ideas CRUD
+export async function createIdea(
+  orgId: string,
+  authorId: string,
+  authorName: string,
+  title: string,
+  description: string,
+  category: string,
+  tags: string[],
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'community_ideas'), {
+    orgId, authorId, authorName, title, description,
+    category, tags, votes: [], status: 'open',
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateIdea(
+  ideaId: string,
+  updates: Partial<Pick<CommunityIdea, 'title' | 'description' | 'category' | 'tags' | 'status' | 'linkedInitiativeId'>>,
+): Promise<void> {
+  await updateDoc(doc(db, 'community_ideas', ideaId), { ...updates, updatedAt: serverTimestamp() });
+}
+
+export async function deleteIdea(ideaId: string): Promise<void> {
+  await deleteDoc(doc(db, 'community_ideas', ideaId));
+}
+
+export async function toggleIdeaVote(ideaId: string, userId: string, currentVotes: string[]): Promise<void> {
+  const voted = currentVotes.includes(userId);
+  const newVotes = voted ? currentVotes.filter(id => id !== userId) : [...currentVotes, userId];
+  await updateDoc(doc(db, 'community_ideas', ideaId), { votes: newVotes });
+}
+
+export function subscribeToIdeas(
+  orgId: string,
+  callback: (ideas: CommunityIdea[]) => void,
+): () => void {
+  const q = query(
+    collection(db, 'community_ideas'),
+    where('orgId', '==', orgId),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<CommunityIdea, 'id'>) })));
+  });
+}
+
+// Discussions CRUD
+export async function createDiscussion(
+  orgId: string,
+  authorId: string,
+  authorName: string,
+  title: string,
+  body: string,
+  category: string,
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'community_discussions'), {
+    orgId, authorId, authorName, title, body,
+    category, replyCount: 0, pinned: false,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function deleteDiscussion(threadId: string): Promise<void> {
+  await deleteDoc(doc(db, 'community_discussions', threadId));
+}
+
+export function subscribeToDiscussions(
+  orgId: string,
+  callback: (threads: DiscussionThread[]) => void,
+): () => void {
+  const q = query(
+    collection(db, 'community_discussions'),
+    where('orgId', '==', orgId),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<DiscussionThread, 'id'>) })));
+  });
+}
+
+export async function addReply(
+  threadId: string,
+  authorId: string,
+  authorName: string,
+  body: string,
+): Promise<void> {
+  await addDoc(collection(db, 'community_discussions', threadId, 'replies'), {
+    authorId, authorName, body, createdAt: serverTimestamp(),
+  });
+  const ref = doc(db, 'community_discussions', threadId);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await updateDoc(ref, { replyCount: (snap.data().replyCount ?? 0) + 1 });
+  }
+}
+
+export function subscribeToReplies(
+  threadId: string,
+  callback: (replies: DiscussionReply[]) => void,
+): () => void {
+  const q = query(
+    collection(db, 'community_discussions', threadId, 'replies'),
+    orderBy('createdAt', 'asc'),
+  );
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<DiscussionReply, 'id'>) })));
+  });
 }

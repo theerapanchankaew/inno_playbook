@@ -151,11 +151,6 @@ service cloud.firestore {
     }
 
     // ── initiatives/{initiativeId} ────────────────────────────────────────────
-    // Innovation Initiative CRUD
-    // - Any authenticated user can read
-    // - super_admin สามารถทำได้ทุกอย่าง (ไม่ต้องมี orgId)
-    // - member ขึ้นไปสามารถ create ได้
-    // - เจ้าของหรือ admin สามารถ update/delete ได้
     match /initiatives/{initiativeId} {
       allow read:   if isAuth();
       allow create: if isSuperAdminSafe() || canEdit();
@@ -165,6 +160,43 @@ service cloud.firestore {
       allow delete: if isSuperAdminSafe() || (isAuth() && (
         resource.data.ownerId == request.auth.uid || isOrgAdmin()
       ));
+    }
+
+    // ── community_ideas/{ideaId} ──────────────────────────────────────────────
+    // Org members can read; authenticated users can create; owner can update/delete
+    match /community_ideas/{ideaId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update: if isAuth() && (
+        resource.data.authorId == request.auth.uid ||
+        isOrgAdmin() ||
+        // Allow vote updates (votes field only)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+      );
+      allow delete: if isAuth() && (
+        resource.data.authorId == request.auth.uid || isOrgAdmin()
+      );
+    }
+
+    // ── community_discussions/{threadId} ──────────────────────────────────────
+    match /community_discussions/{threadId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update: if isAuth() && (
+        resource.data.authorId == request.auth.uid || isOrgAdmin()
+      );
+      allow delete: if isAuth() && (
+        resource.data.authorId == request.auth.uid || isOrgAdmin()
+      );
+    }
+
+    // ── community_discussions/{threadId}/replies/{replyId} ───────────────────
+    match /community_discussions/{threadId}/replies/{replyId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow delete: if isAuth() && (
+        resource.data.authorId == request.auth.uid || isOrgAdmin()
+      );
     }
   }
 }

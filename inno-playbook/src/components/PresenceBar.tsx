@@ -26,22 +26,25 @@ function getInitials(name: string): string {
 }
 
 interface Props {
-  orgId: string;
-  currentUserId: string;
+  /** contextId accepts orgId (legacy) or initiativeId (new flow) */
+  contextId?: string;
+  orgId?: string;
+  currentUserId?: string;
 }
 
-export default function PresenceBar({ orgId, currentUserId }: Props) {
+export default function PresenceBar({ contextId, orgId, currentUserId }: Props) {
+  const effectiveId = contextId ?? orgId ?? '';
   const [users, setUsers] = useState<PresenceUser[]>([]);
   const [tooltip, setTooltip] = useState<string | null>(null);
   const tooltipRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!orgId) return;
-    const unsub = subscribeToPresence(orgId, (u) => {
-      setUsers(u.filter((x) => x.userId !== currentUserId));
+    if (!effectiveId) return;
+    const unsub = subscribeToPresence(effectiveId, (u) => {
+      setUsers(currentUserId ? u.filter((x) => x.userId !== currentUserId) : u);
     });
     return unsub;
-  }, [orgId, currentUserId]);
+  }, [effectiveId, currentUserId]);
 
   if (users.length === 0) return null;
 
