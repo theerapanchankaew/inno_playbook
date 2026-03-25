@@ -1,7 +1,7 @@
 import { db } from './firebase';
 import {
   doc, setDoc, getDoc, updateDoc, collection,
-  query, where, getDocs, serverTimestamp,
+  query, where, getDocs, serverTimestamp, onSnapshot,
 } from 'firebase/firestore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -88,4 +88,31 @@ export async function hasSuperAdmin(): Promise<boolean> {
   const q = query(collection(db, 'users'), where('role', '==', 'super_admin'));
   const snap = await getDocs(q);
   return !snap.empty;
+}
+
+// ─── Get users by role ─────────────────────────────────────────────────────────
+
+export async function getUsersByRole(role: UserRole): Promise<UserProfile[]> {
+  const q = query(collection(db, 'users'), where('role', '==', role));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ uid: d.id, ...(d.data() as Omit<UserProfile, 'uid'>) }));
+}
+
+// ─── Update user profile fields ────────────────────────────────────────────────
+
+export async function updateUserProfile(
+  uid: string,
+  updates: Partial<Pick<UserProfile, 'displayName' | 'role' | 'orgId'>>
+): Promise<void> {
+  await updateDoc(doc(db, 'users', uid), updates);
+}
+
+// ─── Subscribe to all users realtime ──────────────────────────────────────────
+
+export function subscribeToUsers(
+  callback: (users: UserProfile[]) => void
+): () => void {
+  return onSnapshot(collection(db, 'users'), snap => {
+    callback(snap.docs.map(d => ({ uid: d.id, ...(d.data() as Omit<UserProfile, 'uid'>) })));
+  });
 }

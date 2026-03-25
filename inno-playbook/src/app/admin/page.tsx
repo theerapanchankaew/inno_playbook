@@ -115,6 +115,9 @@ export default function AdminPage() {
           <Link href="/cohorts" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
             👥 Cohorts
           </Link>
+          <Link href="/admin/users" style={{ color: '#A78BFA', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none', fontWeight: 700, border: '1px solid #7C3AED', padding: '3px 10px', borderRadius: 6 }}>
+            🔐 Users
+          </Link>
           <UserMenu />
         </div>
       </div>
