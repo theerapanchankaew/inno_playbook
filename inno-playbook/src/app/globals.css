@@ -858,8 +858,8 @@ body{font-family:var(--thai);background:var(--bg);color:var(--slate);min-height:
 /* Viewport */
 .canvas-viewport{flex:1;overflow:hidden;position:relative;cursor:crosshair;user-select:none}
 
-/* Grid background */
-.canvas-grid{position:absolute;inset:-200%;background-image:radial-gradient(circle,#CBD5E1 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:0}
+/* Grid background (fixed to viewport, moves with pan offset) */
+.canvas-grid{position:absolute;inset:0;background-image:radial-gradient(circle,#CBD5E1 1px,transparent 1px);background-size:28px 28px;pointer-events:none;z-index:0}
 
 /* Nodes layer */
 .canvas-nodes{position:absolute;top:0;left:0;z-index:1}
@@ -871,25 +871,16 @@ body{font-family:var(--thai);background:var(--bg);color:var(--slate);min-height:
 .canvas-note-tag{font-family:var(--mono);font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;border-width:1px;border-style:solid;margin-bottom:6px;align-self:flex-start}
 .canvas-note-text{font-size:12px;line-height:1.55;flex:1;white-space:pre-wrap;word-break:break-word;padding:2px}
 .canvas-note-edit{flex:1;width:100%;background:transparent;border:none;outline:none;font-family:var(--thai);font-size:12px;line-height:1.55;resize:none;padding:2px}
-.canvas-note-actions{display:flex;align-items:center;gap:4px;margin-top:8px;padding-top:6px;border-top:1px solid rgba(0,0,0,.06)}
-.canvas-note-color-dot{width:14px;height:14px;border-radius:50%;cursor:pointer;border:none;flex-shrink:0;transition:transform .15s}
-.canvas-note-color-dot:hover{transform:scale(1.3)}
-.canvas-note-del{margin-left:auto;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);color:#DC2626;border-radius:5px;font-size:10px;padding:2px 7px;cursor:pointer;transition:all .15s;font-family:var(--mono)}
-.canvas-note-del:hover{background:rgba(220,38,38,.15)}
-
-/* Picker modal */
-.canvas-picker{position:absolute;background:white;border-radius:12px;padding:16px;box-shadow:0 8px 40px rgba(0,0,0,.2);width:260px;z-index:200;border:1px solid var(--border)}
-.canvas-picker-title{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px}
-.canvas-picker-colors{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.canvas-picker-swatch{width:28px;height:28px;border-radius:6px;cursor:pointer;transition:transform .15s;flex-shrink:0}
-.canvas-picker-swatch.active{transform:scale(1.2);box-shadow:0 0 0 2px #0B7B74}
-.canvas-picker-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
-.canvas-picker-tag{border:1px solid var(--border);background:white;border-radius:20px;padding:3px 9px;font-size:10px;cursor:pointer;font-family:var(--mono);transition:all .15s;color:var(--slate)}
-.canvas-picker-tag.active{background:var(--teal);color:white;border-color:var(--teal)}
-.canvas-picker-foot{display:flex;gap:8px;justify-content:flex-end}
-.canvas-picker-cancel{padding:7px 14px;border:1px solid var(--border);border-radius:7px;background:white;color:var(--muted);font-family:var(--thai);font-size:12px;cursor:pointer}
-.canvas-picker-confirm{padding:7px 16px;background:var(--teal);color:white;border:none;border-radius:7px;font-family:var(--thai);font-size:12px;font-weight:600;cursor:pointer}
-.canvas-picker-confirm:hover{background:var(--teal2)}
+/* Note toolbar (replaces action row + picker) */
+.canvas-note-toolbar{display:flex;align-items:center;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid rgba(0,0,0,.07);flex-wrap:wrap}
+.canvas-toolbar-colors{display:flex;gap:4px;align-items:center}
+.canvas-color-dot{width:14px;height:14px;border-radius:50%;border:2px solid transparent;cursor:pointer;flex-shrink:0;transition:transform .15s;outline:none}
+.canvas-color-dot:hover{transform:scale(1.25)}
+.canvas-color-dot.active{border-color:#0B7B74;transform:scale(1.2)}
+.canvas-tag-select{flex:1;min-width:80px;border:1px solid var(--border);border-radius:5px;padding:2px 5px;font-size:10px;font-family:var(--thai);background:white;color:var(--slate);outline:none;cursor:pointer}
+.canvas-toolbar-btn{border:none;background:transparent;cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;transition:background .15s;line-height:1}
+.canvas-toolbar-btn:hover{background:rgba(0,0,0,.06)}
+.canvas-toolbar-btn.del:hover{background:rgba(220,38,38,.1)}
 
 /* Empty states */
 .canvas-empty-org{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;text-align:center}
