@@ -446,13 +446,20 @@ export function subscribeToIdeas(
   orgId: string,
   callback: (ideas: CommunityIdea[]) => void,
 ): () => void {
+  // No orderBy → no composite index required; sort client-side
   const q = query(
     collection(db, 'community_ideas'),
     where('orgId', '==', orgId),
-    orderBy('createdAt', 'desc'),
   );
   return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<CommunityIdea, 'id'>) })));
+    const ideas = snap.docs
+      .map(d => ({ id: d.id, ...(d.data() as Omit<CommunityIdea, 'id'>) }))
+      .sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+    callback(ideas);
   });
 }
 
@@ -481,13 +488,22 @@ export function subscribeToDiscussions(
   orgId: string,
   callback: (threads: DiscussionThread[]) => void,
 ): () => void {
+  // No orderBy → no composite index required; sort client-side
   const q = query(
     collection(db, 'community_discussions'),
     where('orgId', '==', orgId),
-    orderBy('createdAt', 'desc'),
   );
   return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<DiscussionThread, 'id'>) })));
+    const threads = snap.docs
+      .map(d => ({ id: d.id, ...(d.data() as Omit<DiscussionThread, 'id'>) }))
+      .sort((a, b) => {
+        // Pinned threads first, then by createdAt desc
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        const ta = a.createdAt?.toMillis?.() ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+    callback(threads);
   });
 }
 
@@ -511,11 +527,18 @@ export function subscribeToReplies(
   threadId: string,
   callback: (replies: DiscussionReply[]) => void,
 ): () => void {
+  // No orderBy → no index required; sort client-side asc
   const q = query(
     collection(db, 'community_discussions', threadId, 'replies'),
-    orderBy('createdAt', 'asc'),
   );
   return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<DiscussionReply, 'id'>) })));
+    const replies = snap.docs
+      .map(d => ({ id: d.id, ...(d.data() as Omit<DiscussionReply, 'id'>) }))
+      .sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? 0;
+        const tb = b.createdAt?.toMillis?.() ?? 0;
+        return ta - tb;
+      });
+    callback(replies);
   });
 }
