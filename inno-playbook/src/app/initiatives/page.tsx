@@ -282,6 +282,7 @@ function InitiativeDetail({
 export default function InitiativesPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const isSuperAdmin = profile?.role === 'super_admin';
 
   const [orgId,       setOrgId]       = useState<string | null>(null);
   const [items,       setItems]       = useState<Initiative[]>([]);
@@ -302,24 +303,29 @@ export default function InitiativesPage() {
     if (!authLoading && !user) router.replace('/auth/login');
   }, [user, authLoading, router]);
 
-  // Load orgId
+  // Load orgId — super_admin ใช้ uid เป็น fallback orgId
   useEffect(() => {
     if (!user) return;
     const local = localStorage.getItem(`innoPB_orgId_${user.uid}`);
     if (local) { setOrgId(local); return; }
-    getUserOrgId(user.uid).then(id => { if (id) setOrgId(id); });
+    getUserOrgId(user.uid).then(id => {
+      // ถ้าไม่มี orgId (เช่น super_admin) ใช้ uid เป็น namespace
+      setOrgId(id ?? user.uid);
+    });
   }, [user]);
 
   // Subscribe to initiatives
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId || !user) return;
     setLoading(true);
+    // super_admin: subscribe all orgs via orgId = uid (namespace ตัวเอง)
+    // หรือถ้า orgId ผูกกับ org จริง ก็ subscribe org นั้น
     const unsub = subscribeToInitiatives(orgId, items => {
       setItems(items);
       setLoading(false);
     });
     return unsub;
-  }, [orgId]);
+  }, [orgId, user]);
 
   // Filtered + sorted items
   const filtered = useMemo(() => {
@@ -573,9 +579,9 @@ export default function InitiativesPage() {
       </div>
 
       {/* ── Initiative Modal (Create/Edit) ── */}
-      {showModal && orgId && (
+      {showModal && (
         <InitiativeModal
-          orgId={orgId}
+          orgId={orgId ?? user.uid}
           ownerId={user.uid}
           ownerName={profile?.displayName ?? user.email ?? 'User'}
           initiative={editTarget}
