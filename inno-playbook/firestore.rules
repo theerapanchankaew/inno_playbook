@@ -141,5 +141,21 @@ service cloud.firestore {
         resource.data.createdBy == request.auth.uid || isOrgAdmin()
       );
     }
+
+    // ── initiatives/{initiativeId} ────────────────────────────────────────────
+    // Innovation Initiative CRUD
+    // - Any authenticated user in the org can read
+    // - Owner or org_admin/super_admin can create/update
+    // - Only owner or admin can delete
+    match /initiatives/{initiativeId} {
+      allow read:   if isAuth();
+      allow create: if canEdit();
+      allow update: if isAuth() && (
+        resource.data.ownerId == request.auth.uid || isOrgAdmin()
+      );
+      allow delete: if isAuth() && (
+        resource.data.ownerId == request.auth.uid || isOrgAdmin()
+      );
+    }
   }
 }

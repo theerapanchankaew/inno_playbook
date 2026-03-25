@@ -9,29 +9,33 @@ import { useAuth } from '@/contexts/AuthContext';
 import { exportToPDF, exportToExcel } from '@/lib/exportActions';
 
 interface TopbarProps {
-  activeCap: string;
-  setActiveCap: (cap: string) => void;
-  readinessScore: number;
-  isSaving: boolean;
-  data: Record<string, string>;
+  activeCap?: string;
+  setActiveCap?: (cap: string) => void;
+  readinessScore?: number;
+  isSaving?: boolean;
+  data?: Record<string, string>;
   orgId?: string | null;
   orgName?: string;
   orgSector?: string;
-  onShowPlaybook: () => void;
-  onPresent: () => void;
+  onShowPlaybook?: () => void;
+  onPresent?: () => void;
+  onExportPDF?: () => void;
+  onExportExcel?: () => void;
 }
 
 export default function Topbar({
-  activeCap,
+  activeCap = '',
   setActiveCap,
-  readinessScore,
-  isSaving,
-  data,
+  readinessScore = 0,
+  isSaving = false,
+  data = {},
   orgId,
   orgName = '',
   orgSector = '',
   onShowPlaybook,
   onPresent,
+  onExportPDF,
+  onExportExcel,
 }: TopbarProps) {
   const { user } = useAuth();
 
@@ -45,7 +49,9 @@ export default function Topbar({
   return (
     <div className="topbar">
       <div className="topbar-left">
-        <span className="logo-badge">MASCI · ISO 56001</span>
+        <Link href="/" className="topbar-home-link">
+          <span className="logo-badge">MASCI · ISO 56001</span>
+        </Link>
         <span className="topbar-title">Innovation Playbook Platform</span>
       </div>
       <div className="topbar-right">
@@ -54,40 +60,46 @@ export default function Topbar({
           <PresenceBar orgId={orgId} currentUserId={user.uid} />
         )}
 
-        <div className="cap-dots">
-          {CAPS.map(c => {
-            const p = capPct(c.id);
-            const cls = p >= 80 ? 'done' : p > 0 ? 'partial' : '';
-            return (
-              <div
-                key={c.id}
-                className={`cap-dot ${cls} ${activeCap === c.id ? 'active' : ''}`}
-                onClick={() => setActiveCap(c.id)}
-                title={`${c.name}: ${p}%`}
-              >
-                {c.id}
-              </div>
-            );
-          })}
-        </div>
+        {/* CAP dots — only when in playbook mode */}
+        {setActiveCap && (
+          <div className="cap-dots">
+            {CAPS.map(c => {
+              const p = capPct(c.id);
+              const cls = p >= 80 ? 'done' : p > 0 ? 'partial' : '';
+              return (
+                <div
+                  key={c.id}
+                  className={`cap-dot ${cls} ${activeCap === c.id ? 'active' : ''}`}
+                  onClick={() => setActiveCap(c.id)}
+                  title={`${c.name}: ${p}%`}
+                >
+                  {c.id}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Export buttons */}
         <button
           className="topbar-icon-btn"
           title="Export PDF"
-          onClick={() => exportToPDF(orgName, orgSector, data)}
+          onClick={() => onExportPDF ? onExportPDF() : exportToPDF(orgName, orgSector, data)}
         >
           📄
         </button>
         <button
           className="topbar-icon-btn"
           title="Export Excel"
-          onClick={() => exportToExcel(orgName, orgSector, data)}
+          onClick={() => onExportExcel ? onExportExcel() : exportToExcel(orgName, orgSector, data)}
         >
           📊
         </button>
 
         {/* Navigation links */}
+        <Link href="/initiatives" className="topbar-icon-btn" title="Innovation Initiatives">
+          🚀
+        </Link>
         <Link href="/canvas" className="topbar-icon-btn" title="Innovation Canvas">
           🗺️
         </Link>
@@ -98,11 +110,15 @@ export default function Topbar({
           📈
         </Link>
 
-        <button className="present-btn" onClick={onPresent}>▶ Present</button>
-        <div className="readiness-pill" onClick={onShowPlaybook}>
-          <span className="readiness-label">ISO READINESS</span>
-          <span className="readiness-score">{readinessScore}%</span>
-        </div>
+        {onPresent && (
+          <button className="present-btn" onClick={onPresent}>▶ Present</button>
+        )}
+        {onShowPlaybook && (
+          <div className="readiness-pill" onClick={onShowPlaybook}>
+            <span className="readiness-label">ISO READINESS</span>
+            <span className="readiness-score">{readinessScore}%</span>
+          </div>
+        )}
         <span className={`save-ind ${isSaving ? 'show' : ''}`}>✓ Saved</span>
 
         {/* Notification bell */}
