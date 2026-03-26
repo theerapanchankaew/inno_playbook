@@ -136,27 +136,31 @@ export async function getInitiative(id: string): Promise<Initiative | null> {
 
 /** Get all initiatives for an org */
 export async function getInitiativesByOrg(orgId: string): Promise<Initiative[]> {
+  // No orderBy → no composite index needed; sort client-side
   const q = query(
     collection(db, 'initiatives'),
     where('orgId', '==', orgId),
-    orderBy('createdAt', 'desc')
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Initiative, 'id'>) }));
+  const items = snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Initiative, 'id'>) }));
+  return items.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
 }
 
-/** Subscribe to all initiatives for an org (real-time) */
+/** Subscribe to initiatives (real-time)
+ *  - orgId = null  → super_admin: load ALL initiatives across all orgs
+ *  - orgId = string → normal user: load only their org's initiatives
+ */
 export function subscribeToInitiatives(
-  orgId: string,
+  orgId: string | null,
   callback: (items: Initiative[]) => void
 ): () => void {
-  const q = query(
-    collection(db, 'initiatives'),
-    where('orgId', '==', orgId),
-    orderBy('createdAt', 'desc')
-  );
+  // No orderBy → no composite index needed; sort client-side by createdAt desc
+  const q = orgId
+    ? query(collection(db, 'initiatives'), where('orgId', '==', orgId))
+    : query(collection(db, 'initiatives')); // super_admin: all initiatives
   return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Initiative, 'id'>) })));
+    const items = snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Initiative, 'id'>) }));
+    callback(items.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0)));
   });
 }
 

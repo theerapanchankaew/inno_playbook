@@ -28,6 +28,7 @@ import VersionHistory from '@/components/VersionHistory';
 import PresenceBar from '@/components/PresenceBar';
 import NotificationBell from '@/components/NotificationBell';
 import UserMenu from '@/components/UserMenu';
+import GlobalNav from '@/components/GlobalNav';
 
 export default function InitiativeWorkspacePage() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -153,7 +154,8 @@ export default function InitiativeWorkspacePage() {
   if (!user || !initiative) return null;
 
   return (
-    <div className="layout-root">
+    <div className="layout-root gnav-offset">
+      <GlobalNav />
 
       {/* ── Topbar ── */}
       <div className="topbar">

@@ -397,8 +397,8 @@ export default function InitiativesPage() {
       if (id) {
         setOrgId(id);
       } else if (profile?.role === 'super_admin') {
-        // super_admin ไม่ต้องมี org — ใช้ uid เป็น namespace สำหรับ initiative ของตัวเอง
-        setOrgId(user.uid);
+        // super_admin: ส่ง null เพื่อ subscribe ALL initiatives ทุก org
+        setOrgId(null);
       } else {
         // ผู้ใช้ทั่วไปที่ยังไม่ได้ตั้งค่า org → แสดง modal
         setShowOrgSetup(true);
