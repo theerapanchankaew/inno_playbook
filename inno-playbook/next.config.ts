@@ -1,16 +1,21 @@
 import type { NextConfig } from "next";
 
-// GitHub Actions sets GITHUB_ACTIONS=true automatically
-const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
-const repoName = 'inno_playbook';
+// Static export is used ONLY for production builds (GitHub Actions or Docker)
+// During `npm run dev`, output is left as default so dynamic routes work normally
+const isGithubActions  = process.env.GITHUB_ACTIONS   === 'true';
+const isStaticBuild    = process.env.STATIC_EXPORT     === 'true' || isGithubActions;
+const repoName         = 'inno_playbook';
 
 const nextConfig: NextConfig = {
-  output: 'export',                                    // static HTML export
-  trailingSlash: true,                                 // /page → /page/index.html
-  basePath: isGithubActions ? `/${repoName}` : '',    // /inno_playbook on GH Pages
-  assetPrefix: isGithubActions ? `/${repoName}/` : '', // assets path
+  // Only enable static export when building for GitHub Pages or Docker
+  ...(isStaticBuild && {
+    output: 'export',
+    trailingSlash: true,
+  }),
+  basePath:    isGithubActions ? `/${repoName}` : '',
+  assetPrefix: isGithubActions ? `/${repoName}/` : '',
   images: {
-    unoptimized: true,                                 // required for static export
+    unoptimized: true,
   },
 };
 
