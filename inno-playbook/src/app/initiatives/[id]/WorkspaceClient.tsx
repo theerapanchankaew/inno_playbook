@@ -44,6 +44,7 @@ export default function InitiativeWorkspacePage() {
   const [data,          setData]          = useState<Record<string, string>>({});
   const [isSaving,      setIsSaving]      = useState(false);
   const [pageReady,     setPageReady]     = useState(false);
+  const [loadError,     setLoadError]     = useState<string | null>(null);
 
   const [commentFieldId,    setCommentFieldId]    = useState<string | null>(null);
   const [commentFieldLabel, setCommentFieldLabel] = useState('');
@@ -61,14 +62,27 @@ export default function InitiativeWorkspacePage() {
   useEffect(() => {
     if (!user || !initiativeId) return;
     const init = async () => {
-      const [initative, oid] = await Promise.all([
-        getInitiative(initiativeId),
-        getUserOrgId(user.uid),
-      ]);
-      if (!initative) { router.replace(ROUTES.INITIATIVES); return; }
-      setInitiative(initative);
-      setOrgId(oid ?? user.uid);
-      setPageReady(true);
+      try {
+        const [initative, oid] = await Promise.all([
+          getInitiative(initiativeId),
+          getUserOrgId(user.uid),
+        ]);
+        if (!initative) {
+          setLoadError(`ไม่พบ Initiative "${initiativeId}" — อาจถูกลบหรือ ID ไม่ถูกต้อง`);
+          return;
+        }
+        setInitiative(initative);
+        setOrgId(oid ?? user.uid);
+        setPageReady(true);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Firebase blocked by ad blocker or network error
+        if (msg.includes('BLOCKED') || msg.includes('network') || msg.includes('fetch')) {
+          setLoadError('ไม่สามารถเชื่อมต่อ Firebase ได้ — กรุณาปิด Ad Blocker สำหรับ localhost แล้วลองใหม่');
+        } else {
+          setLoadError(`โหลดข้อมูลไม่สำเร็จ: ${msg}`);
+        }
+      }
     };
     init();
   }, [user, initiativeId, router]);
@@ -136,6 +150,38 @@ export default function InitiativeWorkspacePage() {
   const versionDeliverable = versionFieldId
     ? CAPS.flatMap(c => c.deliverables).find(d => d.id === versionFieldId)
     : null;
+
+  // ── Error screen ─────────────────────────────────────────────────────────
+  if (loadError) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', height: '100vh', background: 'var(--navy)', gap: 16,
+        padding: '0 24px', textAlign: 'center',
+      }}>
+        <span style={{ fontSize: 40 }}>⚠️</span>
+        <div style={{ color: '#F87171', fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 600 }}>
+          โหลด Workspace ไม่สำเร็จ
+        </div>
+        <div style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, maxWidth: 480 }}>
+          {loadError}
+        </div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+          <button
+            onClick={() => { setLoadError(null); setPageReady(false); }}
+            style={{ padding: '8px 20px', background: 'var(--teal)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+          >
+            🔄 ลองใหม่
+          </button>
+          <Link href={ROUTES.INITIATIVES}
+            style={{ padding: '8px 20px', background: '#1E293B', color: '#94A3B8', borderRadius: 8, fontSize: 13, textDecoration: 'none' }}
+          >
+            ← กลับ Initiatives
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // ── Loading screen ────────────────────────────────────────────────────────
   if (authLoading || !pageReady) {
