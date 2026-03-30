@@ -22,6 +22,7 @@ import {
   updateInitiativeProgress,
 } from '@/lib/initiativeActions';
 import { getUserOrgId } from '@/lib/authActions';
+import { ROUTES } from '@/lib/routes';
 import Workspace from '@/components/Workspace';
 import CommentsPanel from '@/components/CommentsPanel';
 import VersionHistory from '@/components/VersionHistory';
@@ -53,7 +54,7 @@ export default function InitiativeWorkspacePage() {
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/auth/login');
+    if (!authLoading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, authLoading, router]);
 
   // ── Load initiative + org ─────────────────────────────────────────────────
@@ -64,7 +65,7 @@ export default function InitiativeWorkspacePage() {
         getInitiative(initiativeId),
         getUserOrgId(user.uid),
       ]);
-      if (!initative) { router.replace('/initiatives'); return; }
+      if (!initative) { router.replace(ROUTES.INITIATIVES); return; }
       setInitiative(initative);
       setOrgId(oid ?? user.uid);
       setPageReady(true);
@@ -160,7 +161,7 @@ export default function InitiativeWorkspacePage() {
       {/* ── Topbar ── */}
       <div className="topbar">
         <div className="topbar-left">
-          <Link href="/initiatives" className="ws-back-btn">
+          <Link href={ROUTES.INITIATIVES} className="ws-back-btn">
             ← Initiatives
           </Link>
           <span className="topbar-divider">|</span>
@@ -313,10 +314,10 @@ export default function InitiativeWorkspacePage() {
           </div>
 
           <div className="sidebar-bot">
-            <Link href="/initiatives" className="sb-btn" style={{ textAlign: 'center' }}>
+            <Link href={ROUTES.INITIATIVES} className="sb-btn" style={{ textAlign: 'center' }}>
               ← กลับ Initiatives
             </Link>
-            <Link href="/community" className="sb-btn primary">
+            <Link href={ROUTES.COMMUNITY} className="sb-btn primary">
               <span>💡</span>Community Space
             </Link>
           </div>

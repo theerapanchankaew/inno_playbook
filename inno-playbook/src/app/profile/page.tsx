@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { updateDisplayName, updateUserRole, getAllUsers, UserProfile, UserRole } from '@/lib/authActions';
 import { isSuperAdmin } from '@/contexts/AuthContext';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: '⚡ Super Admin',
@@ -35,7 +36,7 @@ export default function ProfilePage() {
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) router.replace('/auth/login');
+    if (!loading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, loading, router]);
 
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function ProfilePage() {
             โปรไฟล์ผู้ใช้งาน
           </span>
         </div>
-        <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+        <Link href={ROUTES.INITIATIVES} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
           ← กลับ Initiatives
         </Link>
       </div>
@@ -193,7 +194,7 @@ export default function ProfilePage() {
               <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>
                 ⚡ จัดการผู้ใช้งาน ({allUsers.length} คน)
               </h2>
-              <Link href="/admin" style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--teal)', textDecoration: 'none' }}>
+              <Link href={ROUTES.ADMIN} style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--teal)', textDecoration: 'none' }}>
                 Admin Dashboard →
               </Link>
             </div>

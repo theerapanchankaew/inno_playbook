@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <title>InnoPlaybook</title>
   <script>
-    // GitHub Pages SPA Redirect
-    // Encodes the path and redirects to /?p=/path so the app can handle routing
-    // segmentCount=1 because our basePath is /inno_playbook (1 segment)
+    // GitHub Pages SPA Redirect — redirects 404s back to index with encoded path
+    // Format: /?/path  (layout.tsx decode script checks l.search[1] === '/')
+    // segmentCount=1 because basePath is /inno_playbook (1 segment)
     var segmentCount = 1;
     var l = window.location;
     l.replace(
       l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-      l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
+      l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?/' +
       l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
-      (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+      (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
       l.hash
     );
   </script>

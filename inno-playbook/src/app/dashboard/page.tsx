@@ -20,6 +20,7 @@ import {
 } from '@/lib/initiativeActions';
 import UserMenu from '@/components/UserMenu';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -162,7 +163,7 @@ function InitiativesOverview({ orgId, orgName, orgSector }: { orgId: string; org
           <div style={{ fontSize: 48, marginBottom: 12 }}>🚀</div>
           <div style={{ fontWeight: 700, color: 'var(--navy)', fontSize: 18 }}>ยังไม่มี Innovation Initiative</div>
           <div style={{ marginTop: 8, fontSize: 13 }}>
-            <Link href="/initiatives" style={{ color: 'var(--teal)' }}>สร้าง Initiative แรก</Link>
+            <Link href={ROUTES.INITIATIVES} style={{ color: 'var(--teal)' }}>สร้าง Initiative แรก</Link>
             {' '}เพื่อเริ่มต้น Innovation Portfolio
           </div>
         </div>
@@ -639,7 +640,7 @@ export default function DashboardPage() {
   const [orgSector, setOrgSector] = useState('');
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/auth/login');
+    if (!authLoading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, authLoading, router]);
 
   useEffect(() => {
@@ -705,11 +706,11 @@ export default function DashboardPage() {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/canvas" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🗺️ Canvas</Link>
-          <Link href="/experts" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>👥 Experts</Link>
-          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
+          <Link href={ROUTES.CANVAS} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🗺️ Canvas</Link>
+          <Link href={ROUTES.EXPERTS} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>👥 Experts</Link>
+          <Link href={ROUTES.INITIATIVES} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
           {isAdmin && (
-            <Link href="/admin" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Admin</Link>
+            <Link href={ROUTES.ADMIN} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Admin</Link>
           )}
           <UserMenu />
         </div>
@@ -718,15 +719,15 @@ export default function DashboardPage() {
       {/* Role tabs for admins */}
       {isAdmin && (
         <div style={{ background: 'white', borderBottom: '1px solid var(--border)', padding: '0 24px', display: 'flex', gap: 0 }}>
-          <Link href="/dashboard" style={{ padding: '10px 18px', fontSize: 12, fontWeight: 600, color: 'var(--teal)', borderBottom: '2px solid var(--teal)', textDecoration: 'none' }}>
+          <Link href={ROUTES.DASHBOARD} style={{ padding: '10px 18px', fontSize: 12, fontWeight: 600, color: 'var(--teal)', borderBottom: '2px solid var(--teal)', textDecoration: 'none' }}>
             Facilitator View
           </Link>
           {orgId && (
-            <Link href="/dashboard?tab=org" style={{ padding: '10px 18px', fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>
+            <Link href={ROUTES.DASHBOARD + '?tab=org'} style={{ padding: '10px 18px', fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>
               My Org
             </Link>
           )}
-          <Link href="/cohorts" style={{ padding: '10px 18px', fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>
+          <Link href={ROUTES.COHORTS} style={{ padding: '10px 18px', fontSize: 12, color: 'var(--muted)', textDecoration: 'none' }}>
             Cohorts
           </Link>
         </div>
@@ -743,7 +744,7 @@ export default function DashboardPage() {
             <div style={{ color: 'var(--navy)', fontWeight: 700, fontSize: 18 }}>No organization linked</div>
             <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 8 }}>
               ไปที่{' '}
-              <Link href="/initiatives" style={{ color: 'var(--teal)' }}>Initiatives</Link>
+              <Link href={ROUTES.INITIATIVES} style={{ color: 'var(--teal)' }}>Initiatives</Link>
               {' '}เพื่อตั้งค่าองค์กรของคุณก่อน
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CAPS } from '@/lib/data';
+import { ROUTES } from '@/lib/routes';
 import { saveOrganization, saveDeliverable, getOrganizationData } from '@/lib/actions';
 import { linkOrgToUser, getUserOrgId } from '@/lib/authActions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,9 +53,9 @@ export default function Home() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.replace('/auth/login');
+      router.replace(ROUTES.AUTH.LOGIN);
     } else {
-      router.replace('/initiatives');
+      router.replace(ROUTES.INITIATIVES);
     }
   }, [user, authLoading, router]);
 

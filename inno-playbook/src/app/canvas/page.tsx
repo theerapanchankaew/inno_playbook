@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getUserOrgId } from '@/lib/authActions';
 import UserMenu from '@/components/UserMenu';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export default function CanvasPage() {
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/auth/login');
+    if (!authLoading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, authLoading, router]);
 
   useEffect(() => {
@@ -343,9 +344,9 @@ export default function CanvasPage() {
             <button className="canvas-zoom-btn" onClick={() => setZoom(z => Math.min(2.5, z + 0.1))}>+</button>
             <button className="canvas-zoom-btn" title="Reset view" onClick={() => { setZoom(1); setPan({ x: 60, y: 60 }); }}>⌂</button>
           </div>
-          <Link href="/dashboard" className="canvas-nav-link">📊 Dashboard</Link>
-          <Link href="/experts"   className="canvas-nav-link">👥 Experts</Link>
-          <Link href="/initiatives" className="canvas-nav-link">🚀 Initiatives</Link>
+          <Link href={ROUTES.DASHBOARD} className="canvas-nav-link">📊 Dashboard</Link>
+          <Link href={ROUTES.EXPERTS}   className="canvas-nav-link">👥 Experts</Link>
+          <Link href={ROUTES.INITIATIVES} className="canvas-nav-link">🚀 Initiatives</Link>
           <UserMenu />
         </div>
       </div>
@@ -376,7 +377,7 @@ export default function CanvasPage() {
           <div style={{ fontSize: 48 }}>🗺️</div>
           <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--navy)' }}>ยังไม่ได้ตั้งค่าองค์กร</div>
           <div style={{ color: 'var(--muted)', marginTop: 8 }}>
-            ไปที่ <Link href="/initiatives" style={{ color: 'var(--teal)' }}>Initiatives</Link> เพื่อตั้งค่าองค์กรก่อนใช้งาน Canvas
+            ไปที่ <Link href={ROUTES.INITIATIVES} style={{ color: 'var(--teal)' }}>Initiatives</Link> เพื่อตั้งค่าองค์กรก่อนใช้งาน Canvas
           </div>
         </div>
       )}

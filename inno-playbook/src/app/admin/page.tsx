@@ -12,6 +12,7 @@ import { getCohorts, Cohort } from '@/lib/realtimeActions';
 import { exportFacilitatorReport } from '@/lib/exportActions';
 import UserMenu from '@/components/UserMenu';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 const totalDeliverables = CAPS.reduce((a, c) => a + c.deliverables.length, 0);
 
@@ -40,8 +41,8 @@ export default function AdminPage() {
   // ── Guard ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.replace('/auth/login'); return; }
-    if (profile && !isSuperAdmin(profile)) { router.replace('/'); }
+    if (!user) { router.replace(ROUTES.AUTH.LOGIN); return; }
+    if (profile && !isSuperAdmin(profile)) { router.replace(ROUTES.HOME); }
   }, [user, profile, authLoading, router]);
 
   // ── Real-time organizations subscription ─────────────────────────────────
@@ -108,16 +109,16 @@ export default function AdminPage() {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+          <Link href={ROUTES.INITIATIVES} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
             🚀 Initiatives
           </Link>
-          <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+          <Link href={ROUTES.DASHBOARD} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
             📊 Dashboard
           </Link>
-          <Link href="/cohorts" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
+          <Link href={ROUTES.COHORTS} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>
             👥 Cohorts
           </Link>
-          <Link href="/admin/users" style={{ color: '#A78BFA', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none', fontWeight: 700, border: '1px solid #7C3AED', padding: '3px 10px', borderRadius: 6 }}>
+          <Link href={ROUTES.ADMIN_USERS} style={{ color: '#A78BFA', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none', fontWeight: 700, border: '1px solid #7C3AED', padding: '3px 10px', borderRadius: 6 }}>
             🔐 Users
           </Link>
           <UserMenu />

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { CAPS } from '@/lib/data';
+import { ROUTES } from '@/lib/routes';
 import ActivityFeed from '@/components/ActivityFeed';
 
 interface SidebarProps {
@@ -127,7 +128,7 @@ export default function Sidebar({
         </div>
 
         <div className="sidebar-bot">
-          <Link href="/initiatives" className="sb-btn sb-btn-link"><span>🚀</span>Innovation Initiatives</Link>
+          <Link href={ROUTES.INITIATIVES} className="sb-btn sb-btn-link"><span>🚀</span>Innovation Initiatives</Link>
           <button className="sb-btn" onClick={onShowMatrix}><span>📋</span>Evidence Matrix</button>
           <button className="sb-btn primary" onClick={onShowPlaybook}><span>📄</span>Preview Innovation Playbook</button>
           {orgId && (

@@ -3,30 +3,31 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, isSuperAdmin } from '@/contexts/AuthContext';
+import { ROUTES } from '@/lib/routes';
 
 // ─── Nav item definitions ──────────────────────────────────────────────────────
 
 const MAIN_NAV = [
-  { href: '/initiatives', icon: '🚀', label: 'Initiatives'    },
-  { href: '/dashboard',   icon: '📊', label: 'Dashboard'      },
-  { href: '/community',   icon: '💡', label: 'Community'      },
-  { href: '/canvas',      icon: '🎨', label: 'Canvas'         },
-  { href: '/experts',     icon: '🌐', label: 'Expert Network' },
+  { href: ROUTES.INITIATIVES, icon: '🚀', label: 'Initiatives'    },
+  { href: ROUTES.DASHBOARD,   icon: '📊', label: 'Dashboard'      },
+  { href: ROUTES.COMMUNITY,   icon: '💡', label: 'Community'      },
+  { href: ROUTES.CANVAS,      icon: '🎨', label: 'Canvas'         },
+  { href: ROUTES.EXPERTS,     icon: '🌐', label: 'Expert Network' },
 ];
 
 const ADMIN_NAV = [
-  { href: '/admin',       icon: '⚡', label: 'Admin Hub'  },
-  { href: '/admin/users', icon: '👥', label: 'Users'      },
-  { href: '/cohorts',     icon: '🔗', label: 'Cohorts'    },
+  { href: ROUTES.ADMIN,       icon: '⚡', label: 'Admin Hub'  },
+  { href: ROUTES.ADMIN_USERS, icon: '👥', label: 'Users'      },
+  { href: ROUTES.COHORTS,     icon: '🔗', label: 'Cohorts'    },
 ];
 
 // ─── Active-path helper ────────────────────────────────────────────────────────
 
 function isActive(href: string, pathname: string): boolean {
   // Exact match for top-level admin to avoid false-positive on /admin/users
-  if (href === '/admin') return pathname === '/admin';
+  if (href === ROUTES.ADMIN) return pathname === ROUTES.ADMIN;
   // /initiatives must NOT match /initiatives/[id] workspace
-  if (href === '/initiatives') return pathname === '/initiatives';
+  if (href === ROUTES.INITIATIVES) return pathname === ROUTES.INITIATIVES;
   return pathname.startsWith(href);
 }
 
@@ -42,7 +43,7 @@ export default function GlobalNav() {
     <nav className="gnav" aria-label="Main navigation">
 
       {/* ── Logo ── */}
-      <Link href="/initiatives" className="gnav-logo" title="Innovation Playbook Platform">
+      <Link href={ROUTES.INITIATIVES} className="gnav-logo" title="Innovation Playbook Platform">
         <span className="gnav-logo-icon">🏆</span>
         <span className="gnav-logo-label">InnoPlaybook</span>
       </Link>
@@ -89,8 +90,8 @@ export default function GlobalNav() {
       <div className="gnav-spacer" />
       <div className="gnav-divider" />
       <Link
-        href="/profile"
-        className={`gnav-item${pathname === '/profile' ? ' active' : ''}`}
+        href={ROUTES.PROFILE}
+        className={`gnav-item${pathname === ROUTES.PROFILE ? ' active' : ''}`}
         title="โปรไฟล์ของฉัน"
       >
         <span className="gnav-icon">👤</span>

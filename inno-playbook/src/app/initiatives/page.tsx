@@ -20,6 +20,7 @@ import {
 } from '@/lib/initiativeActions';
 import { getUserOrgId, linkOrgToUser } from '@/lib/authActions';
 import { saveOrganization, getOrganizationData } from '@/lib/actions';
+import { ROUTES } from '@/lib/routes';
 import InitiativeModal from '@/components/InitiativeModal';
 import Topbar from '@/components/Topbar';
 import GlobalNav from '@/components/GlobalNav';
@@ -216,7 +217,7 @@ function InitiativeCard({
         )}
         <a
           className="init-card-workspace-btn"
-          href={`/initiatives/${item.id}`}
+          href={ROUTES.INITIATIVE_WORKSPACE(item.id)}
           onClick={e => e.stopPropagation()}
         >
           🗺 Workspace
@@ -385,7 +386,7 @@ export default function InitiativesPage() {
 
   // Auth guard
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/auth/login');
+    if (!authLoading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, authLoading, router]);
 
   // Load orgId — super_admin ใช้ uid เป็น fallback; ผู้ใช้ทั่วไปที่ยังไม่มี org → แสดง setup modal
@@ -501,7 +502,7 @@ export default function InitiativesPage() {
             <div className="init-page-sub">จัดการ Innovation Projects ทั้งหมดขององค์กร</div>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Link href="/community" className="init-community-btn">
+            <Link href={ROUTES.COMMUNITY} className="init-community-btn">
               💡 Community Space
             </Link>
             <button className="init-create-btn" onClick={handleCreate}>
@@ -677,7 +678,7 @@ export default function InitiativesPage() {
                       {item.targetDate || '—'}
                     </span>
                     <span style={{width:110,display:'flex',gap:4}} onClick={e => e.stopPropagation()}>
-                      <a className="init-card-workspace-btn" href={`/initiatives/${item.id}`} style={{padding:'4px 8px',fontSize:10}}>🗺</a>
+                      <a className="init-card-workspace-btn" href={ROUTES.INITIATIVE_WORKSPACE(item.id)} style={{padding:'4px 8px',fontSize:10}}>🗺</a>
                       <button className="init-card-edit-btn" style={{padding:'4px 8px',fontSize:11}} onClick={() => handleEdit(item)}>✏️</button>
                       <button className="init-card-del-btn"  style={{padding:'4px 8px',fontSize:11}} onClick={() => setDeleteTarget(item)}>🗑</button>
                     </span>

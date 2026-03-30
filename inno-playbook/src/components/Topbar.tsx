@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { CAPS } from '@/lib/data';
+import { ROUTES } from '@/lib/routes';
 import UserMenu from '@/components/UserMenu';
 import PresenceBar from '@/components/PresenceBar';
 import NotificationBell from '@/components/NotificationBell';
@@ -44,7 +45,7 @@ export default function Topbar({
   return (
     <div className="topbar">
       <div className="topbar-left">
-        <Link href="/initiatives" className="topbar-home-link">
+        <Link href={ROUTES.INITIATIVES} className="topbar-home-link">
           <span className="logo-badge">MASCI · ISO 56001</span>
         </Link>
         <span className="topbar-title">Innovation Playbook Platform</span>
@@ -76,16 +77,16 @@ export default function Topbar({
         )}
 
         {/* Navigation links */}
-        <Link href="/initiatives" className="topbar-icon-btn" title="Innovation Initiatives">
+        <Link href={ROUTES.INITIATIVES} className="topbar-icon-btn" title="Innovation Initiatives">
           🚀
         </Link>
-        <Link href="/canvas" className="topbar-icon-btn" title="Innovation Canvas">
+        <Link href={ROUTES.CANVAS} className="topbar-icon-btn" title="Innovation Canvas">
           🗺️
         </Link>
-        <Link href="/experts" className="topbar-icon-btn" title="Expert Network">
+        <Link href={ROUTES.EXPERTS} className="topbar-icon-btn" title="Expert Network">
           👥
         </Link>
-        <Link href="/dashboard" className="topbar-icon-btn" title="Dashboard">
+        <Link href={ROUTES.DASHBOARD} className="topbar-icon-btn" title="Dashboard">
           📈
         </Link>
 

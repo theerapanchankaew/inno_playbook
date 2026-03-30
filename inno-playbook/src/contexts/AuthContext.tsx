@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
+import { ROUTES } from '@/lib/routes';
 import {
   createUserProfile,
   getUserProfile,
@@ -156,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setProfile(null);
     clearSessionCookie();
-    router.push('/auth/login');
+    router.push(ROUTES.AUTH.LOGIN);
   };
 
   // ── Reset Password ───────────────────────────────────────────────────────────

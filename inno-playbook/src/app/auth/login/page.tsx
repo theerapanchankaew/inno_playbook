@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROUTES } from '@/lib/routes';
 
 // ── Inner component ที่ใช้ useSearchParams ต้อง wrap ด้วย Suspense ────────────
 function LoginForm() {
@@ -111,7 +112,7 @@ function LoginForm() {
               ลืมรหัสผ่าน?
             </button>
             <span className="auth-sep">·</span>
-            <Link href="/auth/register" className="auth-link">สมัครสมาชิกใหม่</Link>
+            <Link href={ROUTES.AUTH.REGISTER} className="auth-link">สมัครสมาชิกใหม่</Link>
           </div>
         </>
       ) : (

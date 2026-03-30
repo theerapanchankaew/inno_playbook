@@ -20,6 +20,7 @@ import { getUserOrgId } from '@/lib/authActions';
 import { getOrganizationData } from '@/lib/actions';
 import UserMenu from '@/components/UserMenu';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 // ─── Expert Card ──────────────────────────────────────────────────────────────
 
@@ -305,7 +306,7 @@ export default function ExpertsPage() {
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/auth/login');
+    if (!authLoading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, authLoading, router]);
 
   // ── Init ───────────────────────────────────────────────────────────────────
@@ -470,9 +471,9 @@ export default function ExpertsPage() {
               ➕ Add Expert
             </button>
           )}
-          <Link href="/canvas" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🗺️ Canvas</Link>
-          <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>📊 Dashboard</Link>
-          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
+          <Link href={ROUTES.CANVAS} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🗺️ Canvas</Link>
+          <Link href={ROUTES.DASHBOARD} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>📊 Dashboard</Link>
+          <Link href={ROUTES.INITIATIVES} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
           <UserMenu />
         </div>
       </div>

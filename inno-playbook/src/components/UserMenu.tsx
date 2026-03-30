@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth, isSuperAdmin } from '@/contexts/AuthContext';
 import { UserRole } from '@/lib/authActions';
+import { ROUTES } from '@/lib/routes';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   super_admin: '⚡ Super Admin',
@@ -88,9 +89,9 @@ export default function UserMenu() {
 
           {/* Menu Items */}
           <div style={{ padding: '4px 0' }}>
-            <MenuLink href="/profile" icon="👤" label="โปรไฟล์ของฉัน" onClick={() => setOpen(false)} />
+            <MenuLink href={ROUTES.PROFILE} icon="👤" label="โปรไฟล์ของฉัน" onClick={() => setOpen(false)} />
             {isSuperAdmin(profile) && (
-              <MenuLink href="/admin" icon="⚡" label="Admin Dashboard" onClick={() => setOpen(false)} />
+              <MenuLink href={ROUTES.ADMIN} icon="⚡" label="Admin Dashboard" onClick={() => setOpen(false)} />
             )}
           </div>
 

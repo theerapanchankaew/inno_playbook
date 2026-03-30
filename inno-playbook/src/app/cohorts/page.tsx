@@ -15,6 +15,7 @@ import { getAllOrganizations, Organization } from '@/lib/actions';
 import { CAPS } from '@/lib/data';
 import UserMenu from '@/components/UserMenu';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 const TOTAL_FIELDS = CAPS.reduce((a, c) => a + c.deliverables.length, 0);
 
@@ -247,8 +248,8 @@ export default function CohortsPage() {
   const [selectedCohort, setSelectedCohort] = useState<Cohort | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) { router.replace('/auth/login'); return; }
-    if (!authLoading && profile && !isSuperAdmin(profile)) { router.replace('/'); }
+    if (!authLoading && !user) { router.replace(ROUTES.AUTH.LOGIN); return; }
+    if (!authLoading && profile && !isSuperAdmin(profile)) { router.replace(ROUTES.HOME); }
   }, [user, profile, authLoading, router]);
 
   const loadData = () => {
@@ -298,9 +299,9 @@ export default function CohortsPage() {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/initiatives" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
-          <Link href="/admin" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Admin</Link>
-          <Link href="/dashboard" style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Dashboard</Link>
+          <Link href={ROUTES.INITIATIVES} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>🚀 Initiatives</Link>
+          <Link href={ROUTES.ADMIN} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Admin</Link>
+          <Link href={ROUTES.DASHBOARD} style={{ color: '#94A3B8', fontFamily: 'var(--mono)', fontSize: 11, textDecoration: 'none' }}>Dashboard</Link>
           <UserMenu />
         </div>
       </div>

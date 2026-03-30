@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROUTES } from '@/lib/routes';
 
 export default function RegisterPage() {
   const { signUp, user, loading } = useAuth();
@@ -18,7 +19,7 @@ export default function RegisterPage() {
 
   // ถ้า login อยู่แล้ว → redirect
   useEffect(() => {
-    if (!loading && user) router.replace('/');
+    if (!loading && user) router.replace(ROUTES.HOME);
   }, [user, loading, router]);
 
   const validate = () => {
@@ -37,7 +38,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await signUp(email.trim().toLowerCase(), password, displayName.trim());
-      router.replace('/');
+      router.replace(ROUTES.HOME);
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
       if (code === 'auth/email-already-in-use') {
@@ -152,7 +153,7 @@ export default function RegisterPage() {
 
         <div className="auth-footer">
           <span style={{ color: 'var(--muted)', fontSize: 13 }}>มีบัญชีอยู่แล้ว?</span>
-          <Link href="/auth/login" className="auth-link">เข้าสู่ระบบ</Link>
+          <Link href={ROUTES.AUTH.LOGIN} className="auth-link">เข้าสู่ระบบ</Link>
         </div>
       </div>
     </div>

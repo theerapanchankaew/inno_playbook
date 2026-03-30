@@ -15,6 +15,7 @@ import {
 import { getAllOrganizations } from '@/lib/actions';
 import UserMenu from '@/components/UserMenu';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 // ─── Role metadata ─────────────────────────────────────────────────────────────
 
@@ -242,8 +243,8 @@ export default function UserManagementPage() {
   // ── Auth guard — super_admin only ──────────────────────────────────────────
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.replace('/auth/login'); return; }
-    if (profile && !isSuperAdmin(profile)) { router.replace('/'); }
+    if (!user) { router.replace(ROUTES.AUTH.LOGIN); return; }
+    if (profile && !isSuperAdmin(profile)) { router.replace(ROUTES.HOME); }
   }, [user, profile, authLoading, router]);
 
   // ── Load orgs ──────────────────────────────────────────────────────────────
@@ -320,8 +321,8 @@ export default function UserManagementPage() {
           <span className="um-topbar-title">👤 User Management</span>
         </div>
         <div className="um-topbar-right">
-          <Link href="/admin" className="um-nav-link">← Admin</Link>
-          <Link href="/initiatives" className="um-nav-link">🚀 Initiatives</Link>
+          <Link href={ROUTES.ADMIN} className="um-nav-link">← Admin</Link>
+          <Link href={ROUTES.INITIATIVES} className="um-nav-link">🚀 Initiatives</Link>
           <UserMenu />
         </div>
       </div>

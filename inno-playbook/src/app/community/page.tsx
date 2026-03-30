@@ -23,6 +23,7 @@ import {
 import UserMenu from '@/components/UserMenu';
 import NotificationBell from '@/components/NotificationBell';
 import GlobalNav from '@/components/GlobalNav';
+import { ROUTES } from '@/lib/routes';
 
 type Tab = 'ideas' | 'discussions';
 type IdeaCategory = 'product' | 'process' | 'service' | 'technology' | 'other';
@@ -397,7 +398,7 @@ export default function CommunityPage() {
 
   // Auth guard
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/auth/login');
+    if (!authLoading && !user) router.replace(ROUTES.AUTH.LOGIN);
   }, [user, authLoading, router]);
 
   // Load orgId
@@ -488,7 +489,7 @@ export default function CommunityPage() {
       {/* ── Topbar ── */}
       <div className="topbar">
         <div className="topbar-left">
-          <Link href="/initiatives" className="ws-back-btn">← Initiatives</Link>
+          <Link href={ROUTES.INITIATIVES} className="ws-back-btn">← Initiatives</Link>
           <span className="topbar-divider">|</span>
           <span className="logo-badge">MASCI · ISO 56001</span>
           <span style={{ color: '#E2E8F0', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 700 }}>
