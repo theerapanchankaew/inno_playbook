@@ -265,8 +265,17 @@ function InitiativesOverview({ orgId, orgName, orgSector }: { orgId: string; org
                   </div>
                 </div>
                 <Link
-                  href={`/initiatives/${i.id}`}
-                  style={{ fontSize: 11, background: 'var(--teal)', color: 'white', padding: '6px 14px', borderRadius: 6, textDecoration: 'none', whiteSpace: 'nowrap', fontWeight: 600 }}
+                  href={ROUTES.INITIATIVE_WORKSPACE(i.id)}
+                  style={{
+                    fontSize: 11,
+                    background: 'var(--teal)',
+                    color: 'white',
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600,
+                  }}
                 >
                   🗺 Open Workspace
                 </Link>

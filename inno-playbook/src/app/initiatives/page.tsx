@@ -215,13 +215,13 @@ function InitiativeCard({
             ))}
           </select>
         )}
-        <a
+        <Link
           className="init-card-workspace-btn"
           href={ROUTES.INITIATIVE_WORKSPACE(item.id)}
           onClick={e => e.stopPropagation()}
         >
           🗺 Workspace
-        </a>
+        </Link>
         <button className="init-card-edit-btn" onClick={() => onEdit(item)}>✏️</button>
         <button className="init-card-del-btn"  onClick={() => onDelete(item)}>🗑</button>
       </div>
@@ -678,7 +678,7 @@ export default function InitiativesPage() {
                       {item.targetDate || '—'}
                     </span>
                     <span style={{width:110,display:'flex',gap:4}} onClick={e => e.stopPropagation()}>
-                      <a className="init-card-workspace-btn" href={ROUTES.INITIATIVE_WORKSPACE(item.id)} style={{padding:'4px 8px',fontSize:10}}>🗺</a>
+                      <Link className="init-card-workspace-btn" href={ROUTES.INITIATIVE_WORKSPACE(item.id)} style={{padding:'4px 8px',fontSize:10}}>🗺</Link>
                       <button className="init-card-edit-btn" style={{padding:'4px 8px',fontSize:11}} onClick={() => handleEdit(item)}>✏️</button>
                       <button className="init-card-del-btn"  style={{padding:'4px 8px',fontSize:11}} onClick={() => setDeleteTarget(item)}>🗑</button>
                     </span>
