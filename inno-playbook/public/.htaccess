@@ -1,0 +1,23 @@
+# InnoPlaybook — Apache SPA Routing
+# Place this file in the web root directory where the built files are served
+
+Options -MultiViews
+RewriteEngine On
+
+# Redirect HTTP → HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Serve pre-built static files first
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Dynamic /initiatives/[id] route
+# Serve _ placeholder while keeping real URL (useParams reads it correctly)
+RewriteRule ^(.*\/)?initiatives\/(?!_)([^/]+)\/?$ $1initiatives/_/index.html [L]
+
+# SPA fallback — all other routes serve index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
